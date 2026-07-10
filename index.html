@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Kalkulator Gorden & Blinds Pro</title>
+    <style>
+        :root { --bg: #121212; --panel: #1e1e1e; --text: #e0e0e0; --accent: #bb86fc; }
+        body { background: var(--bg); color: var(--text); font-family: sans-serif; padding: 20px; display: flex; flex-wrap: wrap; gap: 20px; }
+        .panel { background: var(--panel); padding: 20px; border-radius: 12px; flex: 1; min-width: 350px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        input, select, button { width: 100%; padding: 10px; margin: 5px 0; background: #333; color: white; border: 1px solid #444; border-radius: 6px; box-sizing: border-box; }
+        button { background: var(--accent); color: #000; font-weight: bold; cursor: pointer; }
+        .hidden { display: none; }
+        .switch-wrapper { position: relative; width: 100%; height: 50px; background: #2a2a2a; border-radius: 25px; display: flex; align-items: center; cursor: pointer; margin-bottom: 15px; }
+        .switch-toggle { position: absolute; left: 5px; width: 48%; height: 40px; background: var(--accent); border-radius: 20px; transition: 0.3s; }
+        .mode-blinds .switch-toggle { transform: translateX(100%); }
+        .window-card { border: 1px solid #444; padding: 15px; margin-bottom: 10px; border-radius: 8px; background: #252525; }
+    </style>
+    <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1e40af">
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js')
+      .then(() => console.log('Service Worker Registered'));
+  }
+</script>
+
+</head>
+<body>
+
+<div class="panel">
+    <h2>Input Data</h2>
+    <div class="switch-wrapper" onclick="toggleMode()" id="switchBox">
+        <div class="switch-toggle"></div>
+        <div style="flex:1; text-align:center; font-weight:bold; z-index:1;">CURTAIN</div>
+        <div style="flex:1; text-align:center; font-weight:bold; z-index:1;">BLINDS</div>
+    </div>
+
+    <input type="text" id="nama" placeholder="Nama Jendela">
+
+    <div id="curtainFields">
+        <div class="grid-2">
+            <input type="number" id="lebar" placeholder="Lebar (m)">
+            <input type="number" id="tinggi" placeholder="Tinggi (m)">
+            <input type="number" id="hKain" placeholder="Harga Kain Utama/m">
+            <input type="number" id="hVitras" placeholder="Harga Vitrase/m">
+        </div>
+        <select id="model" onchange="checkModel()">
+            <option value="smokring">Smokring</option>
+            <option value="plisket">Plisket</option>
+            <option value="tabtop">Tab Top</option>
+            <option value="spiral">Spiral</option>
+        </select>
+        <select id="jenisKain">
+            <option value="import">Import</option>
+            <option value="lokal">Lokal</option>
+            <option value="vitrase">Kain Vitrase</option>
+        </select>
+        
+        <div style="display:flex; align-items:center; gap:10px; margin:10px 0;">
+            <label>Vitrase Tambahan:</label>
+            <button id="btnVitrase" onclick="toggleVitrase()" style="width:100px;">OFF</button>
+        </div>
+        <div id="vContainer" class="hidden">
+            <select id="vModel" onchange="updateVitraseUI()">
+                <option value="plisket">Vitrase Plisket</option>
+                <option value="spiral">Vitrase Spiral</option>
+            </select>
+            <div id="vInputSpiral" class="grid-2 hidden">
+                <input type="number" id="vL" placeholder="L (m)"><input type="number" id="vT" placeholder="T (m)"><input type="number" id="vQ" placeholder="Qty">
+            </div>
+        </div>
+    </div>
+
+    <div id="blindsFields" class="hidden">
+        <div class="grid-2">
+            <input type="number" id="bL" placeholder="Lebar (m)">
+            <input type="number" id="bT" placeholder="Tinggi (m)">
+            <input type="number" id="bHarga" placeholder="Harga/m²">
+        </div>
+    </div>
+    <button onclick="tambah()">TAMBAH JENDELA</button>
+</div>
+
+<div class="panel">
+    <h2>Daftar Jendela</h2>
+    <div id="daftarJendela"></div>
+    <h3 id="totalSemua">Total: Rp 0</h3>
+</div>
+
+<script>
+let list = []; let mode = 'curtain'; let vOn = false;
+const h = { jahit: 20000, smokring: 4500, rollet: 65000, rell: 50000, hook: 40000, tali: 50000, stick: 50000, instalasi: 50000 };
+
+function checkModel() {
+    const model = document.getElementById('model').value;
+    const btnV = document.getElementById('btnVitrase');
+    if(model === 'spiral') {
+        document.getElementById('jenisKain').value = 'vitrase';
+        vOn = false; btnV.innerText = "OFF"; btnV.disabled = true;
+        document.getElementById('vContainer').classList.add('hidden');
+    } else {
+        btnV.disabled = false;
+    }
+}
+
+function toggleMode() {
+    mode = (mode === 'curtain') ? 'blinds' : 'curtain';
+    document.getElementById('switchBox').classList.toggle('mode-blinds');
+    document.getElementById('curtainFields').classList.toggle('hidden');
+    document.getElementById('blindsFields').classList.toggle('hidden');
+}
+
+function toggleVitrase() {
+    if(document.getElementById('model').value === 'spiral') return;
+    vOn = !vOn;
+    document.getElementById('btnVitrase').innerText = vOn ? "ON" : "OFF";
+    document.getElementById('vContainer').classList.toggle('hidden', !vOn);
+    updateVitraseUI();
+}
+
+function updateVitraseUI() {
+    const isSpiral = document.getElementById('vModel').value === 'spiral';
+    document.getElementById('vInputSpiral').classList.toggle('hidden', !(vOn && isSpiral));
+}
+
+function tambah() {
+    let obj = { id: Date.now(), mode, nama: document.getElementById('nama').value || (mode === 'curtain' ? "Gorden" : "Blinds") };
+    if(mode === 'curtain') {
+        Object.assign(obj, { L: +document.getElementById('lebar').value, T: +document.getElementById('tinggi').value, hKain: +document.getElementById('hKain').value, hVit: +document.getElementById('hVitras').value, model: document.getElementById('model').value, jenis: document.getElementById('jenisKain').value, vOn, vModel: document.getElementById('vModel').value, vL: +document.getElementById('vL').value, vT: +document.getElementById('vT').value, vQ: +document.getElementById('vQ').value });
+    } else {
+        Object.assign(obj, { h: +document.getElementById('bHarga').value, L: +document.getElementById('bL').value, T: +document.getElementById('bT').value });
+    }
+    list.push(obj); render();
+}
+
+function hitung(w) {
+    let items = [], Lc = Math.max(w.L, 1);
+    if(w.mode === 'curtain') {
+        let mK = (w.jenis === 'lokal') ? Math.ceil((w.L + 0.2) / 0.4) * (w.T + 0.3) : (w.L + 0.2) * 3;
+        if(w.model === 'tabtop') mK += 1.0;
+        
+        let hargaKain = (w.jenis === 'vitrase') ? w.hVit : w.hKain;
+        items.push({nama: "Kain", qty: mK.toFixed(2)+"m", harga: mK * hargaKain}, {nama: "Jahit Kain", qty: mK.toFixed(2)+"m", harga: mK * h.jahit});
+        
+        if(w.model === 'smokring') {
+            let n = Math.ceil(w.L * 24); if(n%2!==0) n++;
+            items.push({nama: "Smokring", qty: n+"pcs", harga: n * h.smokring});
+        }
+        if(['smokring', 'tabtop', 'plisket'].includes(w.model)) {
+            items.push({nama: (w.model === 'plisket' ? "Rell" : "Rollet"), qty: Lc+"m", harga: Lc * (w.model === 'plisket' ? h.rell : h.rollet)}, {nama: "Hook", qty: "1 set", harga: h.hook}, {nama: "Tali", qty: "1 set", harga: h.tali});
+        } else if(w.model === 'spiral') { items.push({nama: "Stick", qty: "1pcs", harga: h.stick}); }
+        
+        if(w.vOn) {
+            let mKvit = (w.vModel === 'spiral') ? (w.vL * w.vQ) : mK;
+            items.push({nama: "Vitrase", qty: mKvit.toFixed(2)+"m", harga: mKvit * w.hVit}, {nama: "Jahit Vitrase", qty: mKvit.toFixed(2)+"m", harga: mKvit * h.jahit}, {nama: "Rell", qty: Lc+"m", harga: Lc * h.rell});
+        }
+        items.push({nama: "Instalasi", qty: Lc+"m", harga: Lc * h.instalasi});
+    } else {
+        let luas = Math.max(w.L, 1) * Math.max(w.T, 1);
+        items.push({nama: "Blinds", qty: luas+"m²", harga: luas * w.h}, {nama: "Instalasi", qty: Lc+"m", harga: Lc * h.instalasi});
+    }
+    return { items, total: items.reduce((s, i) => s + i.harga, 0) };
+}
+
+function render() {
+    let cont = document.getElementById('daftarJendela'), grand = 0;
+    cont.innerHTML = list.map(w => {
+        let res = hitung(w); grand += res.total;
+        return `<div class="window-card"><strong>${w.nama}</strong>: Rp ${res.total.toLocaleString()} 
+        <button onclick="alert(\`${res.items.map(i=>i.nama+': '+i.qty+' - Rp '+i.harga.toLocaleString()).join('\\n')}\`)">Detail</button>
+        <button onclick="list=list.filter(x=>x.id!=${w.id});render()">Hapus</button></div>`;
+    }).join('');
+    document.getElementById('totalSemua').innerText = "Total Semua: Rp " + grand.toLocaleString();
+}
+</script>
+<button onclick="lanjutKeInvoice()" style="background:#28a745; width:100%; padding:15px; margin-top:20px; font-size:18px; cursor:pointer;">LANJUT KE INVOICE</button>
+
+<script>
+function lanjutKeInvoice() {
+    // Menyimpan list jendela dan total ke memori browser
+    const totalSemua = document.getElementById('totalSemua').innerText.replace('Total Semua: Rp ', '').replace(/,/g, '');
+    localStorage.setItem('listJendela', JSON.stringify(list));
+    localStorage.setItem('totalSemua', totalSemua);
+    
+    // Pindah ke halaman invoice
+    window.location.href = 'invoice.html';
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice Yeny Gorden</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
+    <style>
+        body, input, table, th, td, p, h1, h2, span { font-weight: 800 !important; }
+        @media print { .no-print { display: none; } }
+    </style>
+</head>
+<body class="bg-gray-100 p-4 font-bold text-black">
+
+    <!-- MODAL LOGIN -->
+    <div id="loginModal" class="fixed inset-0 bg-black z-50 flex items-center justify-center">
+        <div class="bg-white p-8 rounded-lg shadow-2xl w-80 text-center">
+            <h2 class="text-xl font-bold mb-4 text-blue-800">Login Kasir</h2>
+            <input type="text" id="idKasirInput" placeholder="ID Kasir" class="w-full p-2 border-2 border-black mb-2 rounded">
+            <input type="password" id="passInput" placeholder="Password" class="w-full p-2 border-2 border-black mb-4 rounded">
+            <button onclick="cekLoginKeSheet()" id="btnMasuk" class="w-full bg-blue-800 text-white p-2 font-bold rounded">MASUK</button>
+        </div>
+    </div>
+
+    <!-- MODAL SCANNER -->
+    <div id="scannerModal" class="fixed inset-0 bg-black z-50 hidden flex items-center justify-center">
+        <div class="bg-white p-4 rounded w-full max-w-md">
+            <div id="reader" style="width:100%"></div>
+            <button onclick="tutupScanner()" class="w-full bg-red-600 text-white mt-2 p-2">TUTUP SCANNER</button>
+        </div>
+    </div>
+
+    <div class="max-w-3xl mx-auto bg-white p-6 rounded-lg shadow-lg border-2 border-black">
+        <div class="no-print mb-6 border-2 border-blue-800 p-2 rounded">
+            <button onclick="logout()" class="w-full bg-red-800 text-white p-1 mb-2">LOGOUT</button>
+            <input type="text" id="cariInv" placeholder="Cari No Invoice..." class="w-full p-1 border-b mb-2">
+            <div class="flex gap-2">
+                <button onclick="cariInvoice()" class="flex-1 bg-blue-800 text-white p-1">CARI DATA</button>
+                <button onclick="bukaScanner()" class="flex-1 bg-green-700 text-white p-1">SCAN QR</button>
+            </div>
+        </div>
+
+        <div class="flex justify-between border-b-2 border-black pb-4">
+            <div><h1 class="text-3xl text-blue-700">Yeny Gorden</h1></div>
+            <div class="text-right">
+                <p>Invoice: <span id="display-inv">YG-LOADED</span></p>
+                <div id="qrcode" class="mt-2 flex justify-end"></div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-2 my-4">
+            <input type="text" id="nama" placeholder="Nama Pelanggan" class="w-full p-2 border-2 border-black rounded">
+            <input type="text" id="alamat" placeholder="Alamat Pelanggan" class="w-full p-2 border-2 border-black rounded">
+            <input type="text" id="telp" placeholder="No. Telepon" class="w-full p-2 border-2 border-black rounded">
+        </div>
+
+        <table class="w-full mb-4 border-collapse border-2 border-black">
+            <thead><tr class="bg-gray-200"><th class="p-2 border-2">Barang</th><th class="p-2 border-2 w-20">Qty</th><th class="p-2 border-2 w-40">Harga</th></tr></thead>
+            <tbody id="bodyBarang"></tbody>
+        </table>
+
+        <div class="space-y-2 border-t-2 border-black pt-4 text-right">
+            <div>Subtotal: Rp <span id="subtotal">0</span></div>
+            <div>Diskon: <input type="number" id="nilaiDiskon" value="0" oninput="hitungTotal()" class="border-2 w-24 text-center"></div>
+            <div>PPN (11%): Rp <span id="hasilPpn">0</span></div>
+            <div>Ongkir: <input type="number" id="ongkir" value="0" oninput="hitungTotal()" class="border-2 w-24 text-center"></div>
+            <div class="text-xl">Grand Total: Rp <span id="grandTotal">0</span></div>
+            <div class="text-blue-800">DP: <input type="number" id="dp" value="0" oninput="hitungTotal()" class="border-2 border-blue-800 w-24 text-center"></div>
+            <div class="text-xl text-red-700">Sisa Tagihan: Rp <span id="sisa">0</span></div>
+        </div>
+
+        <button onclick="simpanDanCetak()" class="no-print w-full bg-blue-800 text-white p-4 mt-6 rounded">SIMPAN & PRINT</button>
+    </div>
+
+    <script>
+        const API_URL = 'https://script.google.com/macros/s/AKfycbyx_O0RYwn8Mo8TgZ30XXm3dNaimljmwTW6PnSzaXWX6L8NKLeUIjKjG_qIg2sYDz7h/exec';
+
+
+        // AUTO SAVE
+        document.addEventListener('input', () => {
+            document.querySelectorAll('input').forEach(i => localStorage.setItem(i.id, i.value));
+            localStorage.setItem('invNum', document.getElementById('display-inv').innerText);
+        });
+
+        // LOGIN
+        async function cekLoginKeSheet() {
+            const idKasir = document.getElementById('idKasirInput').value;
+            localStorage.setItem('isLoggedIn', 'true');
+            localStorage.setItem('aktifKasir', idKasir);
+            location.reload();
+        }
+
+        function logout() {
+            localStorage.clear();
+            location.reload();
+        }
+
+        // LOAD
+        window.onload = () => {
+            if (localStorage.getItem('isLoggedIn') === 'true') document.getElementById('loginModal').style.display = 'none';
+            
+            const savedInv = localStorage.getItem('invNum');
+            document.getElementById('display-inv').innerText = savedInv || 'YG-' + Date.now().toString().slice(-6);
+            document.querySelectorAll('input').forEach(i => { if(localStorage.getItem(i.id)) i.value = localStorage.getItem(i.id); });
+            
+            new QRCode(document.getElementById("qrcode"), { text: document.getElementById('display-inv').innerText, width: 80, height: 80 });
+            hitungTotal();
+        };
+
+        // PERHITUNGAN
+        function hitungTotal() {
+            let sub = 500000; // Contoh statis, nanti sesuaikan dengan input tabel
+            let dInput = parseFloat(document.getElementById('nilaiDiskon').value)||0;
+            let diskon = dInput < 100 ? (sub * (dInput / 100)) : dInput;
+            let ppn = sub * 0.11;
+            let grand = (sub - diskon) + ppn + (parseFloat(document.getElementById('ongkir').value)||0);
+            document.getElementById('grandTotal').innerText = Math.round(grand).toLocaleString();
+            document.getElementById('sisa').innerText = Math.round(grand - (parseFloat(document.getElementById('dp').value)||0)).toLocaleString();
+        }
+
+        async function simpanDanCetak() {
+            alert("Data tersimpan!");
+            localStorage.clear();
+            window.print();
+            location.reload();
+        }
+    </script>
+</body>
+</html>
