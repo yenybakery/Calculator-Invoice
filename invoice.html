@@ -2,7 +2,10 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Invoice Yeny Gorden</title>
+    <!-- Link Manifest untuk Kebutuhan PWA -->
+    <link rel="manifest" href="./manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
@@ -86,7 +89,7 @@
         </div>
 
         <!-- TOMBOL UTAMA CETAK -->
-        <button onclick="simpanDanCetak()" class="no-print w-full bg-blue-800 text-white p-4 mt-6 rounded text-lg">SIMPAN & PRINT</button>
+        <button id="btnSimpanCetak" onclick="simpanDanCetak()" class="no-print w-full bg-blue-800 text-white p-4 mt-6 rounded text-lg">SIMPAN & PRINT</button>
 
         <!-- PANEL KASIR (BAWAH) -->
         <div class="no-print mt-8 border-2 border-blue-800 p-3 rounded bg-gray-50">
@@ -102,43 +105,24 @@
     </div>
 
     <script>
-// 1. DAFTARKAN SERVICE WORKER DENGAN BENAR
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-            .then(reg => console.log('Service Worker terdaftar!', reg))
-            .catch(err => console.error('Gagal daftar Service Worker:', err));
-    });
-}
+        // 1. REGISTRASI SERVICE WORKER PWA SECARA VALID
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker aktif di jalur relatif PWA.', reg))
+                    .catch(err => console.error('PWA SW Gagal Didaftarkan:', err));
+            });
+        }
 
-// 2. TANGKAP PROMPT INSTALASI OTOMATIS
-let deferredPrompt;
-window.addEventListener('beforeinstallprompt', (e) => {
-    // Cegah Chrome memunculkan pop-up bawaan yang sering gagal di beberapa HP
-    e.preventDefault();
-    deferredPrompt = e;
-    
-    // Opsional: Anda bisa memunculkan tombol kustom di aplikasi jika mau
-    console.log("'beforeinstallprompt' berhasil dipicu. PWA siap diinstal.");
-});
-
-// Fungsi bantuan jika Anda ingin membuat tombol kustom "Instal Aplikasi" nanti
-function picuInstalManual() {
-    if (deferredPrompt) {
-        deferredPrompt.prompt();
-        deferredPrompt.userChoice.then((choiceResult) => {
-            if (choiceResult.outcome === 'accepted') {
-                console.log('User menerima instalasi');
-            }
-            deferredPrompt = null;
+        // Tangkap pemicu instalasi jika browser mendukung instan prompt
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            console.log("Prompt PWA siap dipicu secara internal.");
         });
-    } else {
-        alert("Aplikasi sudah terinstal atau HP Anda belum siap. Pastikan buka lewat Chrome/Safari asli, bukan dari chat WA!");
-    }
-    }
-        
+
         const API_URL = 'https://script.google.com/macros/s/AKfycbxI4ulSMfIc43YHwIYab2xLybIRDs1cAZIsoUbK109ClWn05W6f9BYJEIZQVrFAqe4jPw/exec';
-        
         const h = { jahit: 20000, smokring: 4500, rollet: 65000, rell: 50000, hook: 40000, tali: 50000, stick: 50000, instalasi: 50000 };
         let globalSubtotal = 0;
         let html5QrcodeScanner = null;
@@ -255,7 +239,9 @@ function picuInstalManual() {
             document.getElementById('sisa').innerText = Math.round(grand - dp).toLocaleString();
         }
 
+        // ================= PERBAIKAN ALUR PENGUNCIAN & CETAK NOTE =================
         async function simpanDanCetak() {
+            // 1. Kunci satu nomor invoice yang sama persis sejak awal
             const noInvoice = document.getElementById('display-inv').innerText;
             const nama = document.getElementById('nama').value;
             const alamat = document.getElementById('alamat').value;
@@ -272,13 +258,14 @@ function picuInstalManual() {
 
             if(!nama) return alert("Nama pelanggan tidak boleh kosong!");
 
-            // Pastikan data jendela ter-render ulang dengan aman sebelum memicu dialog print
+            // Pastikan UI dan QR code terikat penuh pada nomor yang dikunci
             renderTabelBarang();
+            generateQRCode(noInvoice);
             hitungTotal();
 
             const dataTransaksi = {
                 action: "simpanInvoice",
-                noInvoice: noInvoice,
+                noInvoice: noInvoice, 
                 nama: nama,
                 alamat: alamat,
                 telp: telp,
@@ -293,7 +280,12 @@ function picuInstalManual() {
                 kasir: localStorage.getItem('aktifKasir') || "Kasir Utama"
             };
 
+            const btn = document.getElementById('btnSimpanCetak');
+
             try {
+                if(btn) btn.innerText = "MENYIMPAN KE DATABASE...";
+                
+                // Kirim berkas ke database awan terlebih dahulu
                 const response = await fetch(API_URL, {
                     method: 'POST',
                     mode: 'cors',
@@ -304,13 +296,18 @@ function picuInstalManual() {
                 const result = await response.json();
                 
                 if(result.status === "sukses") {
-                    alert("Data sukses diarsipkan ke Cloud Google Sheets!");
+                    if(btn) btn.innerText = "MEMBUAT DOKUMEN CETAK...";
+                    
+                    // Kunci ulang QR Code di lembar HTML untuk mencegah glitch
+                    generateQRCode(noInvoice);
+                    
+                    // PENGAMAN 1: Pemicu dialog cetak berjalan SETELAH respon sukses dari Google Sheets diterima
+                    window.print();
+                    
                     const logInStatus = localStorage.getItem('isLoggedIn');
                     const aktifKasir = localStorage.getItem('aktifKasir');
                     
-                    window.print();
-                    
-                    // JEDA 3 DETIK: Memberikan browser waktu memuat preview PDF secara penuh sebelum memori cache dihapus
+                    // PENGAMAN 2: Jeda 4 detik penuh sebelum cache dibersihkan agar browser tidak mencetak lembar kosong
                     setTimeout(() => {
                         localStorage.clear();
                         if(logInStatus) {
@@ -318,13 +315,15 @@ function picuInstalManual() {
                             localStorage.setItem('aktifKasir', aktifKasir);
                         }
                         location.reload();
-                    }, 3000);
+                    }, 4000);
                 } else {
+                    if(btn) btn.innerText = "SIMPAN & PRINT";
                     alert("Gagal menyimpan ke spreadsheet: " + result.pesan);
                 }
             } catch (error) {
                 console.error(error);
-                alert("Koneksi gagal! Pastikan Apps Script Anda aktif dan URL benar.");
+                if(btn) btn.innerText = "SIMPAN & PRINT";
+                alert("Koneksi gagal atau terputus! Data tidak masuk ke Google Sheet. Mohon klik ulang.");
             }
         }
 
