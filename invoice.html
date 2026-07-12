@@ -23,38 +23,44 @@
         </div>
     </div>
 
-    <!-- MODAL SCANNER -->
-    <div id="scannerModal" class="fixed inset-0 bg-black z-50 hidden flex items-center justify-center">
-        <div class="bg-white p-4 rounded w-full max-w-md">
-            <div id="reader" style="width:100%"></div>
-            <button onclick="tutupScanner()" class="w-full bg-red-600 text-white mt-2 p-2">TUTUP SCANNER</button>
+    <!-- MODAL SCANNER KAMERA (HP / WEBCAM PC) -->
+    <div id="scannerModal" class="fixed inset-0 bg-black bg-opacity-70 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white p-4 rounded-lg w-full max-w-md shadow-2xl border-2 border-black">
+            <h3 class="text-center text-lg text-blue-800 mb-2">Arahkan Kamera ke QR Code</h3>
+            <div id="reader" class="w-full overflow-hidden rounded border border-gray-400"></div>
+            <button onclick="tutupScanner()" class="w-full bg-red-600 text-white mt-4 p-2 rounded">TUTUP SCANNER</button>
         </div>
     </div>
 
     <div class="max-w-3xl mx-auto bg-white p-6 rounded-lg shadow-lg border-2 border-black">
-        <div class="no-print mb-6 border-2 border-blue-800 p-2 rounded">
-            <button onclick="logout()" class="w-full bg-red-800 text-white p-1 mb-2">LOGOUT</button>
-            <input type="text" id="cariInv" placeholder="Cari No Invoice..." class="w-full p-1 border-b mb-2">
-            <div class="flex gap-2">
-                <button onclick="cariInvoice()" class="flex-1 bg-blue-800 text-white p-1">CARI DATA</button>
-                <button onclick="bukaScanner()" class="flex-1 bg-green-700 text-white p-1">SCAN QR</button>
+        
+        <!-- HEADER INVOICE -->
+        <div class="text-center border-b-2 border-black pb-4 relative">
+            <h1 class="text-3xl text-blue-700 tracking-wide font-black">YENY GORDEN</h1>
+            <p class="text-sm uppercase tracking-widest text-gray-700 -mt-1">custom blind & curtain</p>
+            
+            <div class="text-xs mt-3 text-gray-800 space-y-0.5">
+                <p>JL. Jend. Sudirman Berkoh - Purwokerto (53146)</p>
+                <p>Tlp. 0895-0421-5020 | Email: yenygorden@gmail.com</p>
+                <p class="font-bold">NIB: 3006260016473</p>
+            </div>
+
+            <div class="flex justify-between items-end mt-4 pt-2 border-t border-dashed border-gray-400 text-left">
+                <div>
+                    <p class="text-sm">Invoice: <span id="display-inv" class="text-blue-800">YG-LOADED</span></p>
+                </div>
+                <div id="qrcode" class="flex justify-end"></div>
             </div>
         </div>
 
-        <div class="flex justify-between border-b-2 border-black pb-4">
-            <div><h1 class="text-3xl text-blue-700">Yeny Gorden</h1></div>
-            <div class="text-right">
-                <p>Invoice: <span id="display-inv">YG-LOADED</span></p>
-                <div id="qrcode" class="mt-2 flex justify-end"></div>
-            </div>
-        </div>
-
+        <!-- DETAIL PELANGGAN -->
         <div class="grid grid-cols-1 gap-2 my-4">
             <input type="text" id="nama" placeholder="Nama Pelanggan" class="w-full p-2 border-2 border-black rounded">
             <input type="text" id="alamat" placeholder="Alamat Pelanggan" class="w-full p-2 border-2 border-black rounded">
             <input type="text" id="telp" placeholder="No. Telepon" class="w-full p-2 border-2 border-black rounded">
         </div>
 
+        <!-- TABEL DATA RINGKAS -->
         <table class="w-full mb-4 border-collapse border-2 border-black">
             <thead>
                 <tr class="bg-gray-200">
@@ -68,6 +74,7 @@
             </tbody>
         </table>
 
+        <!-- RINCIAN PEMBAYARAN -->
         <div class="space-y-2 border-t-2 border-black pt-4 text-right">
             <div>Subtotal: Rp <span id="subtotal">0</span></div>
             <div>Diskon: <input type="number" id="nilaiDiskon" value="0" oninput="hitungTotal()" class="border-2 w-24 text-center"></div>
@@ -78,14 +85,29 @@
             <div class="text-xl text-red-700">Sisa Tagihan: Rp <span id="sisa">0</span></div>
         </div>
 
-        <button onclick="simpanDanCetak()" class="no-print w-full bg-blue-800 text-white p-4 mt-6 rounded">SIMPAN & PRINT</button>
+        <!-- TOMBOL UTAMA CETAK -->
+        <button onclick="simpanDanCetak()" class="no-print w-full bg-blue-800 text-white p-4 mt-6 rounded text-lg">SIMPAN & PRINT</button>
+
+        <!-- PANEL KASIR (BAWAH) -->
+        <div class="no-print mt-8 border-2 border-blue-800 p-3 rounded bg-gray-50">
+            <p class="text-sm text-blue-800 mb-2 text-center">PANEL KONTROL KASIR</p>
+            <div class="flex gap-2 mb-2">
+                <input type="text" id="cariInv" placeholder="Cari / Tembak Scanner di sini..." class="flex-1 p-2 border-2 border-black rounded">
+                <button onclick="cariInvoice(document.getElementById('cariInv').value)" class="bg-blue-800 text-white px-4 rounded">CARI DATA</button>
+                <button onclick="bukaScanner()" class="bg-green-700 text-white px-4 rounded">SCAN QR (KAMERA)</button>
+            </div>
+            <button onclick="logout()" class="w-full bg-red-800 text-white p-2 rounded">LOGOUT DARI SISTEM</button>
+        </div>
+
     </div>
 
     <script>
-        const API_URL = 'https://script.google.com/macros/s/AKfycbyx_O0RYwn8Mo8TgZ30XXm3dNaimljmwTW6PnSzaXWX6L8NKLeUIjKjG_qIg2sYDz7h/exec';
+        // MASUKKAN URL DEPLOYMENT APPS SCRIPT ANDA DI SINI
+        const API_URL = 'https://script.google.com/macros/s/AKfycbxI4ulSMfIc43YHwIYab2xLybIRDs1cAZIsoUbK109ClWn05W6f9BYJEIZQVrFAqe4jPw/exec';
         
         const h = { jahit: 20000, smokring: 4500, rollet: 65000, rell: 50000, hook: 40000, tali: 50000, stick: 50000, instalasi: 50000 };
         let globalSubtotal = 0;
+        let html5QrcodeScanner = null;
 
         document.addEventListener('input', (e) => {
             const allowedIds = ['nama', 'alamat', 'telp', 'nilaiDiskon', 'nilaiPpn', 'ongkir', 'dp'];
@@ -93,6 +115,14 @@
                 localStorage.setItem('inv_' + e.target.id, e.target.value);
             }
             localStorage.setItem('invNum', document.getElementById('display-inv').innerText);
+        });
+
+        // Deteksi input otomatis dari mesin scanner laser fisik di PC
+        document.getElementById('cariInv').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                cariInvoice(this.value);
+            }
         });
 
         async function cekLoginKeSheet() {
@@ -112,10 +142,8 @@
             if(w.mode === 'curtain') {
                 let mK = (w.jenis === 'lokal') ? Math.ceil((w.L + 0.2) / 0.4) * (w.T + 0.3) : (w.L + 0.2) * 3;
                 if(w.model === 'tabtop') mK += 1.0;
-                
                 let hargaKain = (w.jenis === 'vitrase') ? w.hVit : w.hKain;
                 items.push({harga: mK * hargaKain}, {harga: mK * h.jahit});
-                
                 if(w.model === 'smokring') {
                     let n = Math.ceil(w.L * 24); if(n%2!==0) n++;
                     items.push({harga: n * h.smokring});
@@ -123,7 +151,6 @@
                 if(['smokring', 'tabtop', 'plisket'].includes(w.model)) {
                     items.push({harga: Lc * (w.model === 'plisket' ? h.rell : h.rollet)}, {harga: h.hook}, {harga: h.tali});
                 } else if(w.model === 'spiral') { items.push({harga: h.stick}); }
-                
                 if(w.vOn) {
                     let mKvit = (w.vModel === 'spiral') ? (w.vL * w.vQ) : mK;
                     items.push({harga: mKvit * w.hVit}, {harga: mKvit * h.jahit}, {harga: Lc * h.rell});
@@ -138,7 +165,6 @@
 
         window.onload = () => {
             if (localStorage.getItem('isLoggedIn') === 'true') document.getElementById('loginModal').style.display = 'none';
-            
             const savedInv = localStorage.getItem('invNum');
             document.getElementById('display-inv').innerText = savedInv || 'YG-' + Date.now().toString().slice(-6);
             
@@ -146,18 +172,23 @@
                 if(localStorage.getItem('inv_' + id)) document.getElementById(id).value = localStorage.getItem('inv_' + id);
             });
 
+            renderTabelBarang();
+            if(window.QRCode) {
+                new QRCode(document.getElementById("qrcode"), { text: document.getElementById('display-inv').innerText, width: 60, height: 60 });
+            }
+            hitungTotal();
+        };
+
+        function renderTabelBarang() {
             const savedList = localStorage.getItem('listJendela');
             if (savedList) {
                 const listJendela = JSON.parse(savedList);
                 let htmlTabel = '';
                 globalSubtotal = 0;
-
                 listJendela.forEach(jendela => {
                     let totalHargaJendela = hitungTotalSatuJendela(jendela);
                     globalSubtotal += totalHargaJendela;
-
                     let ukuran = `${jendela.L}m × ${jendela.T}m`;
-
                     htmlTabel += `
                         <tr class="border-b border-gray-300">
                             <td class="p-2 border-x-2 border-black text-left">${jendela.nama}</td>
@@ -166,58 +197,155 @@
                         </tr>
                     `;
                 });
-
                 document.getElementById('bodyBarang').innerHTML = htmlTabel;
             }
-            
-            if(window.QRCode) {
-                new QRCode(document.getElementById("qrcode"), { text: document.getElementById('display-inv').innerText, width: 80, height: 80 });
-            }
-            hitungTotal();
-        };
+        }
 
         function hitungTotal() {
             let sub = globalSubtotal;
             document.getElementById('subtotal').innerText = Math.round(sub).toLocaleString();
-
             let dInput = parseFloat(document.getElementById('nilaiDiskon').value) || 0;
             let diskon = dInput < 100 ? (sub * (dInput / 100)) : dInput;
-
             let pInput = parseFloat(document.getElementById('nilaiPpn').value) || 0;
             let ppn = pInput < 100 ? (sub * (pInput / 100)) : pInput;
-            
             let ongkir = parseFloat(document.getElementById('ongkir').value) || 0;
             let grand = (sub - diskon) + ppn + ongkir;
             document.getElementById('grandTotal').innerText = Math.round(grand).toLocaleString();
-            
             let dp = parseFloat(document.getElementById('dp').value) || 0;
             document.getElementById('sisa').innerText = Math.round(grand - dp).toLocaleString();
         }
 
-        // FIXED PRINT ALGORITHM: Cetak diletakkan di awal, pembersihan data dijeda agar tidak memicu reload halaman login
+        // KONEKSI UTAMA POST DATA KE GOOGLE SHEETS VIA GAS
         async function simpanDanCetak() {
-            const logInStatus = localStorage.getItem('isLoggedIn');
-            const aktifKasir = localStorage.getItem('aktifKasir');
+            const noInvoice = document.getElementById('display-inv').innerText;
+            const nama = document.getElementById('nama').value;
+            const alamat = document.getElementById('alamat').value;
+            const telp = document.getElementById('telp').value;
             
-            // Jalankan perintah print browser terlebih dahulu saat halaman invoice penuh masih tampil utuh
-            window.print();
-            
-            // Beri jeda 500ms agar browser selesai menangkap halaman untuk dijadikan PDF, baru lakukan reload
-            setTimeout(() => {
-                alert("Data tersimpan!");
-                localStorage.clear();
+            const subtotal = parseFloat(document.getElementById('subtotal').innerText.replace(/,/g, '')) || 0;
+            const diskon = parseFloat(document.getElementById('nilaiDiskon').value) || 0;
+            const ppn = parseFloat(document.getElementById('nilaiPpn').value) || 0;
+            const ongkir = parseFloat(document.getElementById('ongkir').value) || 0;
+            const grandTotal = parseFloat(document.getElementById('grandTotal').innerText.replace(/,/g, '')) || 0;
+            const dp = parseFloat(document.getElementById('dp').value) || 0;
+            const sisa = parseFloat(document.getElementById('sisa').innerText.replace(/,/g, '')) || 0;
+            const listJendela = localStorage.getItem('listJendela') || "[]";
+
+            if(!nama) return alert("Nama pelanggan tidak boleh kosong!");
+
+            const dataTransaksi = {
+                action: "simpanInvoice",
+                noInvoice: noInvoice,
+                nama: nama,
+                alamat: alamat,
+                telp: telp,
+                subtotal: subtotal,
+                diskon: diskon,
+                ppn: ppn,
+                ongkir: ongkir,
+                grandTotal: grandTotal,
+                dp: dp,
+                sisa: sisa,
+                rincianBarang: listJendela,
+                kasir: localStorage.getItem('aktifKasir') || "Kasir Utama"
+            };
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'application/plain' },
+                    body: JSON.stringify(dataTransaksi)
+                });
                 
-                if(logInStatus) {
-                    localStorage.setItem('isLoggedIn', logInStatus);
-                    localStorage.setItem('aktifKasir', aktifKasir);
+                const result = await response.json();
+                
+                if(result.status === "sukses") {
+                    alert("Data sukses diarsipkan ke Cloud Google Sheets!");
+                    const logInStatus = localStorage.getItem('isLoggedIn');
+                    const aktifKasir = localStorage.getItem('aktifKasir');
+                    
+                    window.print();
+                    
+                    setTimeout(() => {
+                        localStorage.clear();
+                        if(logInStatus) {
+                            localStorage.setItem('isLoggedIn', logInStatus);
+                            localStorage.setItem('aktifKasir', aktifKasir);
+                        }
+                        location.reload();
+                    }, 500);
+                } else {
+                    alert("Gagal menyimpan ke spreadsheet: " + result.pesan);
                 }
-                location.reload();
-            }, 500);
+            } catch (error) {
+                console.error(error);
+                alert("Koneksi gagal! Pastikan Apps Script Anda aktif dan URL benar.");
+            }
         }
 
-        function cariInvoice() { alert("Fungsi cari belum dihubungkan ke spreadsheet."); }
-        function bukaScanner() { alert("Fungsi scanner belum aktif."); }
-        function tutupScanner() { document.getElementById('scannerModal').classList.add('hidden'); }
+        // KONEKSI UTAMA GET DATA DARI GOOGLE SHEETS VIA GAS (PELUNASAN DP)
+        async function cariInvoice(noInvoice) { 
+            if(!noInvoice) return alert("Masukkan atau scan nomor invoice terlebih dahulu!");
+            
+            try {
+                const response = await fetch(`${API_URL}?action=cariInvoice&noInvoice=${encodeURIComponent(noInvoice)}`);
+                const result = await response.json();
+                
+                if(result.status === "sukses") {
+                    const data = result.data;
+                    
+                    document.getElementById('display-inv').innerText = data.noInvoice;
+                    document.getElementById('nama').value = data.nama;
+                    document.getElementById('alamat').value = data.alamat;
+                    document.getElementById('telp').value = data.telp;
+                    document.getElementById('nilaiDiskon').value = data.diskon;
+                    document.getElementById('nilaiPpn').value = data.ppn;
+                    document.getElementById('ongkir').value = data.ongkir;
+                    document.getElementById('dp').value = data.dp;
+                    
+                    if(data.rincianBarang) {
+                        localStorage.setItem('listJendela', data.rincianBarang);
+                        renderTabelBarang();
+                    }
+                    
+                    hitungTotal();
+                    alert("Data Invoice " + noInvoice + " Berhasil Ditarik!");
+                } else {
+                    alert("Nomor Invoice tidak terdaftar di database Google Sheets.");
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Gagal melakukan penarikan data.");
+            }
+        }
+
+        // PROGRAM SCANNER KAMERA
+        function bukaScanner() {
+            document.getElementById('scannerModal').classList.remove('hidden');
+            html5QrcodeScanner = new Html5QrcodeScanner("reader", { 
+                fps: 10, 
+                qrbox: {width: 250, height: 250},
+                rememberLastUsedCamera: true,
+                supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
+            });
+            html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+        }
+
+        function onScanSuccess(decodedText) {
+            document.getElementById('cariInv').value = decodedText;
+            tutupScanner();
+            cariInvoice(decodedText);
+        }
+
+        function onScanFailure(error) {}
+
+        function tutupScanner() {
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.clear().catch(err => console.error(err));
+            }
+            document.getElementById('scannerModal').classList.add('hidden');
+        }
     </script>
 </body>
 </html>
