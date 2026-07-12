@@ -102,6 +102,41 @@
     </div>
 
     <script>
+// 1. DAFTARKAN SERVICE WORKER DENGAN BENAR
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('Service Worker terdaftar!', reg))
+            .catch(err => console.error('Gagal daftar Service Worker:', err));
+    });
+}
+
+// 2. TANGKAP PROMPT INSTALASI OTOMATIS
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Cegah Chrome memunculkan pop-up bawaan yang sering gagal di beberapa HP
+    e.preventDefault();
+    deferredPrompt = e;
+    
+    // Opsional: Anda bisa memunculkan tombol kustom di aplikasi jika mau
+    console.log("'beforeinstallprompt' berhasil dipicu. PWA siap diinstal.");
+});
+
+// Fungsi bantuan jika Anda ingin membuat tombol kustom "Instal Aplikasi" nanti
+function picuInstalManual() {
+    if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+                console.log('User menerima instalasi');
+            }
+            deferredPrompt = null;
+        });
+    } else {
+        alert("Aplikasi sudah terinstal atau HP Anda belum siap. Pastikan buka lewat Chrome/Safari asli, bukan dari chat WA!");
+    }
+    }
+        
         const API_URL = 'https://script.google.com/macros/s/AKfycbxI4ulSMfIc43YHwIYab2xLybIRDs1cAZIsoUbK109ClWn05W6f9BYJEIZQVrFAqe4jPw/exec';
         
         const h = { jahit: 20000, smokring: 4500, rollet: 65000, rell: 50000, hook: 40000, tali: 50000, stick: 50000, instalasi: 50000 };
