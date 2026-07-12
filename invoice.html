@@ -180,17 +180,13 @@
             let sub = globalSubtotal;
             document.getElementById('subtotal').innerText = Math.round(sub).toLocaleString();
 
-            // Hitung Diskon (Bisa nominal atau persen)
             let dInput = parseFloat(document.getElementById('nilaiDiskon').value) || 0;
             let diskon = dInput < 100 ? (sub * (dInput / 100)) : dInput;
 
-            // Hitung PPN Manual (Jika diisi di bawah 100 anggap persen, jika di atas 100 anggap nominal Rupiah langsung)
             let pInput = parseFloat(document.getElementById('nilaiPpn').value) || 0;
             let ppn = pInput < 100 ? (sub * (pInput / 100)) : pInput;
             
             let ongkir = parseFloat(document.getElementById('ongkir').value) || 0;
-            
-            // Grand Total = (Subtotal - Diskon) + PPN + Ongkir
             let grand = (sub - diskon) + ppn + ongkir;
             document.getElementById('grandTotal').innerText = Math.round(grand).toLocaleString();
             
@@ -198,20 +194,25 @@
             document.getElementById('sisa').innerText = Math.round(grand - dp).toLocaleString();
         }
 
+        // FIXED PRINT ALGORITHM: Cetak diletakkan di awal, pembersihan data dijeda agar tidak memicu reload halaman login
         async function simpanDanCetak() {
-            alert("Data tersimpan!");
             const logInStatus = localStorage.getItem('isLoggedIn');
             const aktifKasir = localStorage.getItem('aktifKasir');
             
-            localStorage.clear();
-            
-            if(logInStatus) {
-                localStorage.setItem('isLoggedIn', logInStatus);
-                localStorage.setItem('aktifKasir', aktifKasir);
-            }
-
+            // Jalankan perintah print browser terlebih dahulu saat halaman invoice penuh masih tampil utuh
             window.print();
-            location.reload();
+            
+            // Beri jeda 500ms agar browser selesai menangkap halaman untuk dijadikan PDF, baru lakukan reload
+            setTimeout(() => {
+                alert("Data tersimpan!");
+                localStorage.clear();
+                
+                if(logInStatus) {
+                    localStorage.setItem('isLoggedIn', logInStatus);
+                    localStorage.setItem('aktifKasir', aktifKasir);
+                }
+                location.reload();
+            }, 500);
         }
 
         function cariInvoice() { alert("Fungsi cari belum dihubungkan ke spreadsheet."); }
@@ -219,4 +220,4 @@
         function tutupScanner() { document.getElementById('scannerModal').classList.add('hidden'); }
     </script>
 </body>
-    </html>
+</html>
