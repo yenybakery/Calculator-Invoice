@@ -71,7 +71,7 @@
         <div class="space-y-2 border-t-2 border-black pt-4 text-right">
             <div>Subtotal: Rp <span id="subtotal">0</span></div>
             <div>Diskon: <input type="number" id="nilaiDiskon" value="0" oninput="hitungTotal()" class="border-2 w-24 text-center"></div>
-            <div>PPN (11%): Rp <span id="hasilPpn">0</span></div>
+            <div>PPN: <input type="number" id="nilaiPpn" value="0" oninput="hitungTotal()" class="border-2 w-24 text-center"></div>
             <div>Ongkir: <input type="number" id="ongkir" value="0" oninput="hitungTotal()" class="border-2 w-24 text-center"></div>
             <div class="text-xl">Grand Total: Rp <span id="grandTotal">0</span></div>
             <div class="text-blue-800">DP: <input type="number" id="dp" value="0" oninput="hitungTotal()" class="border-2 border-blue-800 w-24 text-center"></div>
@@ -88,7 +88,7 @@
         let globalSubtotal = 0;
 
         document.addEventListener('input', (e) => {
-            const allowedIds = ['nama', 'alamat', 'telp', 'nilaiDiskon', 'ongkir', 'dp'];
+            const allowedIds = ['nama', 'alamat', 'telp', 'nilaiDiskon', 'nilaiPpn', 'ongkir', 'dp'];
             if(allowedIds.includes(e.target.id)){
                 localStorage.setItem('inv_' + e.target.id, e.target.value);
             }
@@ -107,7 +107,6 @@
             location.reload();
         }
 
-        // Fungsi hitung total 1 jendela saja (Sama persis dengan Logika Kalkulator Anda)
         function hitungTotalSatuJendela(w) {
             let items = [], Lc = Math.max(w.L, 1);
             if(w.mode === 'curtain') {
@@ -143,11 +142,10 @@
             const savedInv = localStorage.getItem('invNum');
             document.getElementById('display-inv').innerText = savedInv || 'YG-' + Date.now().toString().slice(-6);
             
-            ['nama', 'alamat', 'telp', 'nilaiDiskon', 'ongkir', 'dp'].forEach(id => {
+            ['nama', 'alamat', 'telp', 'nilaiDiskon', 'nilaiPpn', 'ongkir', 'dp'].forEach(id => {
                 if(localStorage.getItem('inv_' + id)) document.getElementById(id).value = localStorage.getItem('inv_' + id);
             });
 
-            // Ambil data dari kalkulator
             const savedList = localStorage.getItem('listJendela');
             if (savedList) {
                 const listJendela = JSON.parse(savedList);
@@ -155,14 +153,11 @@
                 globalSubtotal = 0;
 
                 listJendela.forEach(jendela => {
-                    // Dapatkan total harga untuk 1 jendela ini
                     let totalHargaJendela = hitungTotalSatuJendela(jendela);
                     globalSubtotal += totalHargaJendela;
 
-                    // Format teks ukuran (L x T)
                     let ukuran = `${jendela.L}m × ${jendela.T}m`;
 
-                    // Masukkan ke tabel secara ringkas per jendela
                     htmlTabel += `
                         <tr class="border-b border-gray-300">
                             <td class="p-2 border-x-2 border-black text-left">${jendela.nama}</td>
@@ -185,13 +180,17 @@
             let sub = globalSubtotal;
             document.getElementById('subtotal').innerText = Math.round(sub).toLocaleString();
 
+            // Hitung Diskon (Bisa nominal atau persen)
             let dInput = parseFloat(document.getElementById('nilaiDiskon').value) || 0;
             let diskon = dInput < 100 ? (sub * (dInput / 100)) : dInput;
-            
-            let ppn = sub * 0.11;
-            document.getElementById('hasilPpn').innerText = Math.round(ppn).toLocaleString();
 
+            // Hitung PPN Manual (Jika diisi di bawah 100 anggap persen, jika di atas 100 anggap nominal Rupiah langsung)
+            let pInput = parseFloat(document.getElementById('nilaiPpn').value) || 0;
+            let ppn = pInput < 100 ? (sub * (pInput / 100)) : pInput;
+            
             let ongkir = parseFloat(document.getElementById('ongkir').value) || 0;
+            
+            // Grand Total = (Subtotal - Diskon) + PPN + Ongkir
             let grand = (sub - diskon) + ppn + ongkir;
             document.getElementById('grandTotal').innerText = Math.round(grand).toLocaleString();
             
@@ -220,4 +219,4 @@
         function tutupScanner() { document.getElementById('scannerModal').classList.add('hidden'); }
     </script>
 </body>
-</html>
+    </html>
