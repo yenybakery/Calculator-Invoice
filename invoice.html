@@ -64,7 +64,7 @@
                 </tr>
             </thead>
             <tbody id="bodyBarang">
-                <!-- Data dari kalkulator akan otomatis merender ke sini -->
+                <!-- Data item gorden otomatis pecah ke sini -->
             </tbody>
         </table>
 
@@ -84,19 +84,19 @@
     <script>
         const API_URL = 'https://script.google.com/macros/s/AKfycbyx_O0RYwn8Mo8TgZ30XXm3dNaimljmwTW6PnSzaXWX6L8NKLeUIjKjG_qIg2sYDz7h/exec';
         
-        // Konstanta harga jahit & komponen (Sama seperti di Kalkulator)
+        // Komponen biaya standar gorden (menyesuaikan kode kalkulator Anda)
         const h = { jahit: 20000, smokring: 4500, rollet: 65000, rell: 50000, hook: 40000, tali: 50000, stick: 50000, instalasi: 50000 };
         let globalSubtotal = 0;
 
-        // AUTO SAVE INPUT DATA DIRI (Kecuali kalkulasi invoice)
+        // FIXED: Memakai prefix 'inv_' agar data input tidak bentrok atau menghapus kiriman kalkulator
         document.addEventListener('input', (e) => {
-            if(['nama', 'alamat', 'telp', 'nilaiDiskon', 'ongkir', 'dp'].includes(e.target.id)){
-                localStorage.setItem(e.target.id, e.target.value);
+            const allowedIds = ['nama', 'alamat', 'telp', 'nilaiDiskon', 'ongkir', 'dp'];
+            if(allowedIds.includes(e.target.id)){
+                localStorage.setItem('inv_' + e.target.id, e.target.value);
             }
             localStorage.setItem('invNum', document.getElementById('display-inv').innerText);
         });
 
-        // LOGIN
         async function cekLoginKeSheet() {
             const idKasir = document.getElementById('idKasirInput').value;
             localStorage.setItem('isLoggedIn', 'true');
@@ -109,7 +109,7 @@
             location.reload();
         }
 
-        // FUNGSI HITUNG JENDELA (Di-copy dari logika kalkulator Anda)
+        // Fungsi pemecah komponen gorden per jendela (Sinkron dengan Logika Kalkulator)
         function hitungJendela(w) {
             let items = [], Lc = Math.max(w.L, 1);
             if(w.mode === 'curtain') {
@@ -139,26 +139,25 @@
             return items;
         }
 
-        // LOAD DATA SAAT HALAMAN DIBUKA
+        // Render Data Otomatis saat Halaman Invoice Dibuka
         window.onload = () => {
             if (localStorage.getItem('isLoggedIn') === 'true') document.getElementById('loginModal').style.display = 'none';
             
             const savedInv = localStorage.getItem('invNum');
             document.getElementById('display-inv').innerText = savedInv || 'YG-' + Date.now().toString().slice(-6);
             
-            // Kembalikan data profil pelanggan yang tersimpan jika ada
+            // Kembalikan input form yang tersimpan
             ['nama', 'alamat', 'telp', 'nilaiDiskon', 'ongkir', 'dp'].forEach(id => {
-                if(localStorage.getItem(id)) document.getElementById(id).value = localStorage.getItem(id);
+                if(localStorage.getItem('inv_' + id)) document.getElementById(id).value = localStorage.getItem('inv_' + id);
             });
 
-            // Ambil data listJendela yang dikirim oleh kalkulator
+            // Baca data list jendela yang dikirim dari kalkulator
             const savedList = localStorage.getItem('listJendela');
             if (savedList) {
                 const listJendela = JSON.parse(savedList);
                 let htmlTabel = '';
                 globalSubtotal = 0;
 
-                // Urai setiap jendela menjadi item-item rincian bodi invoice
                 listJendela.forEach(jendela => {
                     let breakdownItems = hitungJendela(jendela);
                     breakdownItems.forEach(item => {
@@ -176,11 +175,13 @@
                 document.getElementById('bodyBarang').innerHTML = htmlTabel;
             }
             
-            new QRCode(document.getElementById("qrcode"), { text: document.getElementById('display-inv').innerText, width: 80, height: 80 });
+            if(window.QRCode) {
+                new QRCode(document.getElementById("qrcode"), { text: document.getElementById('display-inv').innerText, width: 80, height: 80 });
+            }
             hitungTotal();
         };
 
-        // PERHITUNGAN UTAMA INVOICE
+        // Perhitungan Akumulasi Total Invoice
         function hitungTotal() {
             let sub = globalSubtotal;
             document.getElementById('subtotal').innerText = Math.round(sub).toLocaleString();
@@ -201,14 +202,12 @@
 
         async function simpanDanCetak() {
             alert("Data tersimpan!");
-            
-            // Simpan status login agar tidak perlu login ulang setelah cetak
             const logInStatus = localStorage.getItem('isLoggedIn');
             const aktifKasir = localStorage.getItem('aktifKasir');
             
             localStorage.clear();
             
-            // Kembalikan data login saja
+            // Mengamankan status login kasir agar tidak perlu login ulang pasca-cetak
             if(logInStatus) {
                 localStorage.setItem('isLoggedIn', logInStatus);
                 localStorage.setItem('aktifKasir', aktifKasir);
@@ -218,9 +217,10 @@
             location.reload();
         }
 
-        // Fungsi dummy agar tidak error saat tombol diklik sebelum dipasang sistem backend
+        // Placeholder untuk fungsionalitas eksternal bawaan Anda
         function cariInvoice() { alert("Fungsi cari belum dihubungkan ke spreadsheet."); }
         function bukaScanner() { alert("Fungsi scanner belum aktif."); }
+        function tutupScanner() { document.getElementById('scannerModal').classList.add('hidden'); }
     </script>
 </body>
 </html>
