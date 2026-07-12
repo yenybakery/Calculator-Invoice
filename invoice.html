@@ -102,7 +102,6 @@
     </div>
 
     <script>
-        // MASUKKAN URL DEPLOYMENT APPS SCRIPT ANDA DI SINI
         const API_URL = 'https://script.google.com/macros/s/AKfycbxI4ulSMfIc43YHwIYab2xLybIRDs1cAZIsoUbK109ClWn05W6f9BYJEIZQVrFAqe4jPw/exec';
         
         const h = { jahit: 20000, smokring: 4500, rollet: 65000, rell: 50000, hook: 40000, tali: 50000, stick: 50000, instalasi: 50000 };
@@ -117,7 +116,6 @@
             localStorage.setItem('invNum', document.getElementById('display-inv').innerText);
         });
 
-        // Deteksi input otomatis dari mesin scanner laser fisik di PC
         document.getElementById('cariInv').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -166,18 +164,25 @@
         window.onload = () => {
             if (localStorage.getItem('isLoggedIn') === 'true') document.getElementById('loginModal').style.display = 'none';
             const savedInv = localStorage.getItem('invNum');
-            document.getElementById('display-inv').innerText = savedInv || 'YG-' + Date.now().toString().slice(-6);
+            const currentInv = savedInv || 'YG-' + Date.now().toString().slice(-6);
+            document.getElementById('display-inv').innerText = currentInv;
             
             ['nama', 'alamat', 'telp', 'nilaiDiskon', 'nilaiPpn', 'ongkir', 'dp'].forEach(id => {
                 if(localStorage.getItem('inv_' + id)) document.getElementById(id).value = localStorage.getItem('inv_' + id);
             });
 
             renderTabelBarang();
-            if(window.QRCode) {
-                new QRCode(document.getElementById("qrcode"), { text: document.getElementById('display-inv').innerText, width: 60, height: 60 });
-            }
+            generateQRCode(currentInv);
             hitungTotal();
         };
+
+        function generateQRCode(text) {
+            const qrContainer = document.getElementById("qrcode");
+            qrContainer.innerHTML = ""; // Bersihkan QR lama agar tidak menumpuk ganda
+            if(window.QRCode && text) {
+                new QRCode(qrContainer, { text: text, width: 60, height: 60 });
+            }
+        }
 
         function renderTabelBarang() {
             const savedList = localStorage.getItem('listJendela');
@@ -215,7 +220,6 @@
             document.getElementById('sisa').innerText = Math.round(grand - dp).toLocaleString();
         }
 
-        // KONEKSI UTAMA POST DATA KE GOOGLE SHEETS VIA GAS
         async function simpanDanCetak() {
             const noInvoice = document.getElementById('display-inv').innerText;
             const nama = document.getElementById('nama').value;
@@ -251,10 +255,11 @@
             };
 
             try {
+                // DIPERBAIKI: Content-Type diubah ke text/plain untuk melompati proteksi CORS pada Google Apps Script
                 const response = await fetch(API_URL, {
                     method: 'POST',
                     mode: 'cors',
-                    headers: { 'Content-Type': 'application/plain' },
+                    headers: { 'Content-Type': 'text/plain' },
                     body: JSON.stringify(dataTransaksi)
                 });
                 
@@ -284,7 +289,6 @@
             }
         }
 
-        // KONEKSI UTAMA GET DATA DARI GOOGLE SHEETS VIA GAS (PELUNASAN DP)
         async function cariInvoice(noInvoice) { 
             if(!noInvoice) return alert("Masukkan atau scan nomor invoice terlebih dahulu!");
             
@@ -309,6 +313,9 @@
                         renderTabelBarang();
                     }
                     
+                    // DIPERBAIKI: Memperbarui cetakan gambar QR Code agar sesuai dengan nota yang ditarik
+                    generateQRCode(data.noInvoice);
+                    
                     hitungTotal();
                     alert("Data Invoice " + noInvoice + " Berhasil Ditarik!");
                 } else {
@@ -320,7 +327,6 @@
             }
         }
 
-        // PROGRAM SCANNER KAMERA
         function bukaScanner() {
             document.getElementById('scannerModal').classList.remove('hidden');
             html5QrcodeScanner = new Html5QrcodeScanner("reader", { 
