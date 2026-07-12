@@ -16,13 +16,26 @@
 </head>
 <body class="bg-gray-100 p-4 font-bold text-black">
 
-    <!-- MODAL LOGIN -->
-    <div id="loginModal" class="fixed inset-0 bg-black z-50 flex items-center justify-center">
-        <div class="bg-white p-8 rounded-lg shadow-2xl w-80 text-center">
-            <h2 class="text-xl font-bold mb-4 text-blue-800">Login Kasir</h2>
-            <input type="text" id="idKasirInput" placeholder="ID Kasir" class="w-full p-2 border-2 border-black mb-2 rounded">
-            <input type="password" id="passInput" placeholder="Password" class="w-full p-2 border-2 border-black mb-4 rounded">
-            <button onclick="cekLoginKeSheet()" id="btnMasuk" class="w-full bg-blue-800 text-white p-2 font-bold rounded">MASUK</button>
+    <!-- MODAL LOGIN DENGAN FITUR GANTI PASSWORD -->
+    <div id="loginModal" class="fixed inset-0 bg-black z-50 flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-sm text-center border-2 border-black">
+            <!-- Form Input Login Utama -->
+            <div id="formLoginUtama">
+                <h2 class="text-xl font-bold mb-4 text-blue-800">Login Kasir</h2>
+                <input type="text" id="idKasirInput" placeholder="ID Kasir" class="w-full p-2 border-2 border-black mb-2 rounded">
+                <input type="password" id="passInput" placeholder="Password Bawaan" class="w-full p-2 border-2 border-black mb-4 rounded">
+                <button onclick="cekLoginKeSheet()" id="btnMasuk" class="w-full bg-blue-800 text-white p-2 font-bold rounded">MASUK</button>
+            </div>
+
+            <!-- Form Khusus Ganti Password (Tersembunyi Awalnya) -->
+            <div id="formGantiPassword" class="hidden">
+                <h2 class="text-xl font-bold mb-2 text-red-700">Wajib Ganti Password</h2>
+                <p class="text-xs text-gray-600 mb-4">Ini adalah login pertama Anda. Demi keamanan, silakan buat password baru yang hanya Anda yang tahu.</p>
+                <input type="hidden" id="idKasirTersembunyi">
+                <input type="password" id="passBaru1" placeholder="Masukkan Password Baru" class="w-full p-2 border-2 border-black mb-2 rounded">
+                <input type="password" id="passBaru2" placeholder="Ulangi Password Baru" class="w-full p-2 border-2 border-black mb-4 rounded">
+                <button onclick="prosesGantiPasswordMutlak()" id="btnGantiPass" class="w-full bg-red-700 text-white p-2 font-bold rounded">SIMPAN PASSWORD & MASUK</button>
+            </div>
         </div>
     </div>
 
@@ -114,18 +127,19 @@
             });
         }
 
-        // Tangkap pemicu instalasi jika browser mendukung instan prompt
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            console.log("Prompt PWA siap dipicu secara internal.");
         });
 
+        // MASUKKAN URL DEPLOYMENT WEB APP ANDA DI SINI
         const API_URL = 'https://script.google.com/macros/s/AKfycbxI4ulSMfIc43YHwIYab2xLybIRDs1cAZIsoUbK109ClWn05W6f9BYJEIZQVrFAqe4jPw/exec';
+        
         const h = { jahit: 20000, smokring: 4500, rollet: 65000, rell: 50000, hook: 40000, tali: 50000, stick: 50000, instalasi: 50000 };
         let globalSubtotal = 0;
         let html5QrcodeScanner = null;
+        let namaKasirSementara = ""; 
 
         document.addEventListener('input', (e) => {
             const allowedIds = ['nama', 'alamat', 'telp', 'nilaiDiskon', 'nilaiPpn', 'ongkir', 'dp'];
@@ -142,11 +156,91 @@
             }
         });
 
+        // ================= ALUR KEAMANAN LOGIN KASIR =================
         async function cekLoginKeSheet() {
-            const idKasir = document.getElementById('idKasirInput').value;
-            localStorage.setItem('isLoggedIn', 'true');
-            localStorage.setItem('aktifKasir', idKasir);
-            location.reload();
+            const idKasir = document.getElementById('idKasirInput').value.trim();
+            const password = document.getElementById('passInput').value.trim();
+            const btn = document.getElementById('btnMasuk');
+
+            if (!idKasir || !password) return alert("ID Kasir dan Password wajib diisi!");
+
+            try {
+                btn.innerText = "MEMVERIFIKASI...";
+                btn.disabled = true;
+
+                const respon = await fetch(`${API_URL}?action=loginKasir&idKasir=${encodeURIComponent(idKasir)}&password=${encodeURIComponent(password)}`);
+                const hasil = await respon.json();
+
+                if (hasil.status === "sukses") {
+                    if (hasil.statusKasir === "BARU") {
+                        document.getElementById('formLoginUtama').classList.add('hidden');
+                        document.getElementById('idKasirTersembunyi').value = hasil.idKasir;
+                        namaKasirSementara = hasil.namaKasir;
+                        document.getElementById('formGantiPassword').classList.remove('hidden');
+                    } else {
+                        alert("Login Berhasil! Selamat bekerja, " + hasil.namaKasir);
+                        localStorage.setItem('isLoggedIn', 'true');
+                        localStorage.setItem('aktifKasir', hasil.namaKasir);
+                        location.reload();
+                    }
+                } else {
+                    alert("Login Gagal: " + hasil.pesan);
+                    btn.innerText = "MASUK";
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Gagal terhubung ke server verifikasi.");
+                btn.innerText = "MASUK";
+                btn.disabled = false;
+            }
+        }
+
+        async function prosesGantiPasswordMutlak() {
+            const idKasir = document.getElementById('idKasirTersembunyi').value;
+            const pass1 = document.getElementById('passBaru1').value.trim();
+            const pass2 = document.getElementById('passBaru2').value.trim();
+            const btn = document.getElementById('btnGantiPass');
+
+            if (!pass1 || !pass2) return alert("Kedua kolom password baru harus diisi!");
+            if (pass1 !== pass2) return alert("Konfirmasi password tidak cocok!");
+            if (pass1.length < 5) return alert("Password minimal 5 karakter.");
+
+            try {
+                btn.innerText = "MENYIMPAN PASSWORD...";
+                btn.disabled = true;
+
+                const dataGanti = {
+                    action: "gantiPasswordPertama",
+                    idKasir: idKasir,
+                    passwordBaru: pass1
+                };
+
+                const respon = await fetch(API_URL, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify(dataGanti)
+                });
+                
+                const hasil = await respon.json();
+
+                if (hasil.status === "sukses") {
+                    alert("Password diperbarui! Selamat datang, " + namaKasirSementara);
+                    localStorage.setItem('isLoggedIn', 'true');
+                    localStorage.setItem('aktifKasir', namaKasirSementara);
+                    location.reload();
+                } else {
+                    alert("Gagal mengubah password: " + hasil.pesan);
+                    btn.innerText = "SIMPAN PASSWORD & MASUK";
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Gangguan koneksi saat memperbarui password.");
+                btn.innerText = "SIMPAN PASSWORD & MASUK";
+                btn.disabled = false;
+            }
         }
 
         function logout() {
@@ -154,6 +248,7 @@
             location.reload();
         }
 
+        // ================= HITUNG DATA TRANSAKSI JENDELA =================
         function hitungTotalSatuJendela(w) {
             let items = [], Lc = Math.max(w.L, 1);
             if(w.mode === 'curtain') {
@@ -181,7 +276,9 @@
         }
 
         window.onload = () => {
-            if (localStorage.getItem('isLoggedIn') === 'true') document.getElementById('loginModal').style.display = 'none';
+            if (localStorage.getItem('isLoggedIn') === 'true') {
+                document.getElementById('loginModal').style.display = 'none';
+            }
             const savedInv = localStorage.getItem('invNum');
             const currentInv = savedInv || 'YG-' + Date.now().toString().slice(-6);
             document.getElementById('display-inv').innerText = currentInv;
@@ -241,7 +338,6 @@
 
         // ================= PERBAIKAN ALUR PENGUNCIAN & CETAK NOTE =================
         async function simpanDanCetak() {
-            // 1. Kunci satu nomor invoice yang sama persis sejak awal
             const noInvoice = document.getElementById('display-inv').innerText;
             const nama = document.getElementById('nama').value;
             const alamat = document.getElementById('alamat').value;
@@ -258,7 +354,6 @@
 
             if(!nama) return alert("Nama pelanggan tidak boleh kosong!");
 
-            // Pastikan UI dan QR code terikat penuh pada nomor yang dikunci
             renderTabelBarang();
             generateQRCode(noInvoice);
             hitungTotal();
@@ -285,7 +380,6 @@
             try {
                 if(btn) btn.innerText = "MENYIMPAN KE DATABASE...";
                 
-                // Kirim berkas ke database awan terlebih dahulu
                 const response = await fetch(API_URL, {
                     method: 'POST',
                     mode: 'cors',
@@ -297,17 +391,13 @@
                 
                 if(result.status === "sukses") {
                     if(btn) btn.innerText = "MEMBUAT DOKUMEN CETAK...";
-                    
-                    // Kunci ulang QR Code di lembar HTML untuk mencegah glitch
                     generateQRCode(noInvoice);
                     
-                    // PENGAMAN 1: Pemicu dialog cetak berjalan SETELAH respon sukses dari Google Sheets diterima
                     window.print();
                     
                     const logInStatus = localStorage.getItem('isLoggedIn');
                     const aktifKasir = localStorage.getItem('aktifKasir');
                     
-                    // PENGAMAN 2: Jeda 4 detik penuh sebelum cache dibersihkan agar browser tidak mencetak lembar kosong
                     setTimeout(() => {
                         localStorage.clear();
                         if(logInStatus) {
@@ -323,7 +413,7 @@
             } catch (error) {
                 console.error(error);
                 if(btn) btn.innerText = "SIMPAN & PRINT";
-                alert("Koneksi gagal atau terputus! Data tidak masuk ke Google Sheet. Mohon klik ulang.");
+                alert("Koneksi gagal atau terputus! Mohon klik ulang.");
             }
         }
 
@@ -355,7 +445,7 @@
                     hitungTotal();
                     alert("Data Invoice " + noInvoice + " Berhasil Ditarik!");
                 } else {
-                    alert("Nomor Invoice tidak terdaftar di database Google Sheets.");
+                    alert("Nomor Invoice tidak terdaftar di database.");
                 }
             } catch (error) {
                 console.error(error);
