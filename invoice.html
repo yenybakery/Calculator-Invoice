@@ -58,13 +58,13 @@
         <table class="w-full mb-4 border-collapse border-2 border-black">
             <thead>
                 <tr class="bg-gray-200">
-                    <th class="p-2 border-2 text-left">Barang / Detail Kerja</th>
-                    <th class="p-2 border-2 w-24 text-center">Qty</th>
-                    <th class="p-2 border-2 w-40 text-right">Harga</th>
+                    <th class="p-2 border-2 text-left">Nama Jendela</th>
+                    <th class="p-2 border-2 w-32 text-center">Ukuran (L × T)</th>
+                    <th class="p-2 border-2 w-40 text-right">Total Harga</th>
                 </tr>
             </thead>
             <tbody id="bodyBarang">
-                <!-- Data item gorden otomatis pecah ke sini -->
+                <!-- Data jendela ringkas otomatis masuk ke sini -->
             </tbody>
         </table>
 
@@ -84,11 +84,9 @@
     <script>
         const API_URL = 'https://script.google.com/macros/s/AKfycbyx_O0RYwn8Mo8TgZ30XXm3dNaimljmwTW6PnSzaXWX6L8NKLeUIjKjG_qIg2sYDz7h/exec';
         
-        // Komponen biaya standar gorden (menyesuaikan kode kalkulator Anda)
         const h = { jahit: 20000, smokring: 4500, rollet: 65000, rell: 50000, hook: 40000, tali: 50000, stick: 50000, instalasi: 50000 };
         let globalSubtotal = 0;
 
-        // FIXED: Memakai prefix 'inv_' agar data input tidak bentrok atau menghapus kiriman kalkulator
         document.addEventListener('input', (e) => {
             const allowedIds = ['nama', 'alamat', 'telp', 'nilaiDiskon', 'ongkir', 'dp'];
             if(allowedIds.includes(e.target.id)){
@@ -109,49 +107,47 @@
             location.reload();
         }
 
-        // Fungsi pemecah komponen gorden per jendela (Sinkron dengan Logika Kalkulator)
-        function hitungJendela(w) {
+        // Fungsi hitung total 1 jendela saja (Sama persis dengan Logika Kalkulator Anda)
+        function hitungTotalSatuJendela(w) {
             let items = [], Lc = Math.max(w.L, 1);
             if(w.mode === 'curtain') {
                 let mK = (w.jenis === 'lokal') ? Math.ceil((w.L + 0.2) / 0.4) * (w.T + 0.3) : (w.L + 0.2) * 3;
                 if(w.model === 'tabtop') mK += 1.0;
                 
                 let hargaKain = (w.jenis === 'vitrase') ? w.hVit : w.hKain;
-                items.push({nama: `${w.nama} - Kain`, qty: mK.toFixed(2)+"m", harga: mK * hargaKain}, {nama: `${w.nama} - Jahit Kain`, qty: mK.toFixed(2)+"m", harga: mK * h.jahit});
+                items.push({harga: mK * hargaKain}, {harga: mK * h.jahit});
                 
                 if(w.model === 'smokring') {
                     let n = Math.ceil(w.L * 24); if(n%2!==0) n++;
-                    items.push({nama: `${w.nama} - Smokring`, qty: n+"pcs", harga: n * h.smokring});
+                    items.push({harga: n * h.smokring});
                 }
                 if(['smokring', 'tabtop', 'plisket'].includes(w.model)) {
-                    items.push({nama: `${w.nama} - ${w.model === 'plisket' ? "Rell" : "Rollet"}`, qty: Lc+"m", harga: Lc * (w.model === 'plisket' ? h.rell : h.rollet)}, {nama: `${w.nama} - Hook`, qty: "1 set", harga: h.hook}, {nama: `${w.nama} - Tali`, qty: "1 set", harga: h.tali});
-                } else if(w.model === 'spiral') { items.push({nama: `${w.nama} - Stick`, qty: "1pcs", harga: h.stick}); }
+                    items.push({harga: Lc * (w.model === 'plisket' ? h.rell : h.rollet)}, {harga: h.hook}, {harga: h.tali});
+                } else if(w.model === 'spiral') { items.push({harga: h.stick}); }
                 
                 if(w.vOn) {
                     let mKvit = (w.vModel === 'spiral') ? (w.vL * w.vQ) : mK;
-                    items.push({nama: `${w.nama} - Vitrase`, qty: mKvit.toFixed(2)+"m", harga: mKvit * w.hVit}, {nama: `${w.nama} - Jahit Vitrase`, qty: mKvit.toFixed(2)+"m", harga: mKvit * h.jahit}, {nama: `${w.nama} - Rell Vitrase`, qty: Lc+"m", harga: Lc * h.rell});
+                    items.push({harga: mKvit * w.hVit}, {harga: mKvit * h.jahit}, {harga: Lc * h.rell});
                 }
-                items.push({nama: `${w.nama} - Instalasi`, qty: Lc+"m", harga: Lc * h.instalasi});
+                items.push({harga: Lc * h.instalasi});
             } else {
                 let luas = Math.max(w.L, 1) * Math.max(w.T, 1);
-                items.push({nama: `${w.nama} - Blinds`, qty: luas+"m²", harga: luas * w.h}, {nama: `${w.nama} - Instalasi`, qty: Lc+"m", harga: Lc * h.instalasi});
+                items.push({harga: luas * w.h}, {harga: Lc * h.instalasi});
             }
-            return items;
+            return items.reduce((s, i) => s + i.harga, 0);
         }
 
-        // Render Data Otomatis saat Halaman Invoice Dibuka
         window.onload = () => {
             if (localStorage.getItem('isLoggedIn') === 'true') document.getElementById('loginModal').style.display = 'none';
             
             const savedInv = localStorage.getItem('invNum');
             document.getElementById('display-inv').innerText = savedInv || 'YG-' + Date.now().toString().slice(-6);
             
-            // Kembalikan input form yang tersimpan
             ['nama', 'alamat', 'telp', 'nilaiDiskon', 'ongkir', 'dp'].forEach(id => {
                 if(localStorage.getItem('inv_' + id)) document.getElementById(id).value = localStorage.getItem('inv_' + id);
             });
 
-            // Baca data list jendela yang dikirim dari kalkulator
+            // Ambil data dari kalkulator
             const savedList = localStorage.getItem('listJendela');
             if (savedList) {
                 const listJendela = JSON.parse(savedList);
@@ -159,17 +155,21 @@
                 globalSubtotal = 0;
 
                 listJendela.forEach(jendela => {
-                    let breakdownItems = hitungJendela(jendela);
-                    breakdownItems.forEach(item => {
-                        globalSubtotal += item.harga;
-                        htmlTabel += `
-                            <tr class="border-b border-gray-300">
-                                <td class="p-2 border-x-2 border-black text-left">${item.nama}</td>
-                                <td class="p-2 border-x-2 border-black text-center">${item.qty}</td>
-                                <td class="p-2 border-x-2 border-black text-right">Rp ${Math.round(item.harga).toLocaleString()}</td>
-                            </tr>
-                        `;
-                    });
+                    // Dapatkan total harga untuk 1 jendela ini
+                    let totalHargaJendela = hitungTotalSatuJendela(jendela);
+                    globalSubtotal += totalHargaJendela;
+
+                    // Format teks ukuran (L x T)
+                    let ukuran = `${jendela.L}m × ${jendela.T}m`;
+
+                    // Masukkan ke tabel secara ringkas per jendela
+                    htmlTabel += `
+                        <tr class="border-b border-gray-300">
+                            <td class="p-2 border-x-2 border-black text-left">${jendela.nama}</td>
+                            <td class="p-2 border-x-2 border-black text-center">${ukuran}</td>
+                            <td class="p-2 border-x-2 border-black text-right">Rp ${Math.round(totalHargaJendela).toLocaleString()}</td>
+                        </tr>
+                    `;
                 });
 
                 document.getElementById('bodyBarang').innerHTML = htmlTabel;
@@ -181,7 +181,6 @@
             hitungTotal();
         };
 
-        // Perhitungan Akumulasi Total Invoice
         function hitungTotal() {
             let sub = globalSubtotal;
             document.getElementById('subtotal').innerText = Math.round(sub).toLocaleString();
@@ -207,7 +206,6 @@
             
             localStorage.clear();
             
-            // Mengamankan status login kasir agar tidak perlu login ulang pasca-cetak
             if(logInStatus) {
                 localStorage.setItem('isLoggedIn', logInStatus);
                 localStorage.setItem('aktifKasir', aktifKasir);
@@ -217,7 +215,6 @@
             location.reload();
         }
 
-        // Placeholder untuk fungsionalitas eksternal bawaan Anda
         function cariInvoice() { alert("Fungsi cari belum dihubungkan ke spreadsheet."); }
         function bukaScanner() { alert("Fungsi scanner belum aktif."); }
         function tutupScanner() { document.getElementById('scannerModal').classList.add('hidden'); }
