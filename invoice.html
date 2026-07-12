@@ -178,7 +178,7 @@
 
         function generateQRCode(text) {
             const qrContainer = document.getElementById("qrcode");
-            qrContainer.innerHTML = ""; // Bersihkan QR lama agar tidak menumpuk ganda
+            qrContainer.innerHTML = "";
             if(window.QRCode && text) {
                 new QRCode(qrContainer, { text: text, width: 60, height: 60 });
             }
@@ -237,6 +237,10 @@
 
             if(!nama) return alert("Nama pelanggan tidak boleh kosong!");
 
+            // Pastikan data jendela ter-render ulang dengan aman sebelum memicu dialog print
+            renderTabelBarang();
+            hitungTotal();
+
             const dataTransaksi = {
                 action: "simpanInvoice",
                 noInvoice: noInvoice,
@@ -255,7 +259,6 @@
             };
 
             try {
-                // DIPERBAIKI: Content-Type diubah ke text/plain untuk melompati proteksi CORS pada Google Apps Script
                 const response = await fetch(API_URL, {
                     method: 'POST',
                     mode: 'cors',
@@ -272,6 +275,7 @@
                     
                     window.print();
                     
+                    // JEDA 3 DETIK: Memberikan browser waktu memuat preview PDF secara penuh sebelum memori cache dihapus
                     setTimeout(() => {
                         localStorage.clear();
                         if(logInStatus) {
@@ -279,7 +283,7 @@
                             localStorage.setItem('aktifKasir', aktifKasir);
                         }
                         location.reload();
-                    }, 500);
+                    }, 3000);
                 } else {
                     alert("Gagal menyimpan ke spreadsheet: " + result.pesan);
                 }
@@ -313,9 +317,7 @@
                         renderTabelBarang();
                     }
                     
-                    // DIPERBAIKI: Memperbarui cetakan gambar QR Code agar sesuai dengan nota yang ditarik
                     generateQRCode(data.noInvoice);
-                    
                     hitungTotal();
                     alert("Data Invoice " + noInvoice + " Berhasil Ditarik!");
                 } else {
