@@ -22,6 +22,7 @@
 </head>
 <body class="bg-gray-100 p-4 font-bold text-black">
 
+    <!-- Modal Login -->
     <div id="loginModal" class="fixed inset-0 bg-black z-50 flex items-center justify-center p-4">
         <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-sm text-center border-2 border-black">
             <div id="formLoginUtama">
@@ -40,6 +41,7 @@
         </div>
     </div>
 
+    <!-- Modal Scanner -->
     <div id="scannerModal" class="fixed inset-0 bg-black bg-opacity-70 z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white p-4 rounded-lg w-full max-w-md shadow-2xl border-2 border-black">
             <h3 class="text-center text-lg text-blue-800 mb-2">Arahkan Kamera ke QR Code</h3>
@@ -60,6 +62,11 @@
                 <div><p class="text-sm">Invoice: <span id="display-inv" class="text-blue-800">YG-LOADED</span></p></div>
                 <div id="qrcode" class="flex justify-end"></div>
             </div>
+        </div>
+
+        <!-- INPUT INVOICE UNTUK TOMBOL CARI -->
+        <div class="no-print mt-4 mb-2">
+            <input type="text" id="cariNoInvoice" placeholder="Ketik No Invoice di sini sebelum klik CARI (Contoh: YG-123456)" class="w-full p-2 border-2 border-blue-800 rounded bg-blue-50 uppercase text-center text-sm">
         </div>
 
         <div class="grid grid-cols-1 gap-2 my-4 grid-print">
@@ -83,11 +90,16 @@
             <div class="text-xl text-red-700">Sisa Tagihan: Rp <span id="sisa">0</span></div>
         </div>
 
-        <button id="btnSimpanCetak" onclick="simpanDanCetak()" class="no-print w-full bg-blue-800 text-white p-4 mt-6 rounded text-lg font-black">SIMPAN & PRINT</button>
-        <button onclick="transaksiBaru()" class="no-print w-full bg-gray-700 text-white p-2 mt-2 rounded text-sm font-bold">BUAT INVOICE BARU (KEMBALI KE KALKULATOR)</button>
-
-        <div class="no-print mt-8 border-2 border-blue-800 p-3 rounded bg-gray-50">
-            <button onclick="logout()" class="w-full bg-red-800 text-white p-2 rounded">LOGOUT</button>
+        <!-- PANEL TOMBOL SEJAJAR DI BAGIAN BAWAH -->
+        <div class="no-print mt-8 pt-4 border-t-2 border-dashed border-gray-400 grid grid-cols-5 gap-2 text-center text-xs">
+            <!-- Fungsi Utama Transaksi (Sisi Kiri & Tengah) -->
+            <button id="btnSimpanCetak" onclick="simpanDanCetak()" class="bg-blue-800 text-white p-3 rounded font-black uppercase text-sm col-span-1 shadow-md hover:bg-blue-900">SIMPAN & PRINT</button>
+            <button onclick="cariInvoiceFromServer()" id="btnCariInv" class="bg-sky-700 text-white p-3 rounded font-bold uppercase col-span-1 hover:bg-sky-800">CARI DATA</button>
+            <button onclick="bukaScanner()" class="bg-emerald-700 text-white p-3 rounded font-bold uppercase col-span-1 hover:bg-emerald-800">SCAN QR</button>
+            
+            <!-- Tindakan Sensitif / Reset (Sisi Kanan - Diberi Jarak Visual Warna Abu-abu/Merah Tua agar tidak salah klik) -->
+            <button onclick="transaksiBaru()" class="bg-gray-600 text-white p-3 rounded font-bold uppercase col-span-1 hover:bg-gray-700">PESANAN BARU</button>
+            <button onclick="logout()" class="bg-red-950 text-white p-3 rounded font-bold uppercase col-span-1 hover:bg-red-900">LOGOUT</button>
         </div>
     </div>
 
@@ -95,8 +107,8 @@
         const API_URL = 'https://script.google.com/macros/s/AKfycbwaGIM27-COSwAD3ZsEtUpYwODGw75kaqay_xnizeUqyTyAZuO7xlEHDnafN1zJ9EVfWA/exec';
         const h = { jahit: 20000, smokring: 4500, rollet: 65000, rell: 50000, hook: 40000, tali: 50000, stick: 50000, instalasi: 50000 };
         let globalSubtotal = 0;
+        let html5QrcodeScanner = null;
 
-        // Fungsi Sinkronisasi untuk Print
         function syncPrintFields() {
             let dInput = parseFloat(document.getElementById('nilaiDiskon').value) || 0;
             let pInput = parseFloat(document.getElementById('nilaiPpn').value) || 0;
@@ -138,26 +150,30 @@
             return items.reduce((s, i) => s + i.harga, 0);
         }
 
-        function renderTabelBarang() {
-            const savedList = localStorage.getItem('listJendela');
-            if (savedList) {
-                const listJendela = JSON.parse(savedList);
-                let htmlTabel = '';
-                globalSubtotal = 0;
-                listJendela.forEach(jendela => {
-                    let totalHargaJendela = hitungTotalSatuJendela(jendela);
-                    globalSubtotal += totalHargaJendela;
-                    let ukuran = `${jendela.L}m × ${jendela.T}m`;
-                    htmlTabel += `
-                        <tr class="border-b border-gray-300">
-                            <td class="p-2 border-x-2 border-black text-left">${jendela.nama}</td>
-                            <td class="p-2 border-x-2 border-black text-center">${ukuran}</td>
-                            <td class="p-2 border-x-2 border-black text-right">Rp ${Math.round(totalHargaJendela).toLocaleString()}</td>
-                        </tr>
-                    `;
-                });
-                document.getElementById('bodyBarang').innerHTML = htmlTabel;
+        function renderTabelBarang(dataManual = null) {
+            let listJendela = [];
+            if(dataManual) {
+                listJendela = dataManual;
+            } else {
+                const savedList = localStorage.getItem('listJendela');
+                if(savedList) listJendela = JSON.parse(savedList);
             }
+
+            let htmlTabel = '';
+            globalSubtotal = 0;
+            listJendela.forEach(jendela => {
+                let totalHargaJendela = hitungTotalSatuJendela(jendela);
+                globalSubtotal += totalHargaJendela;
+                let ukuran = `${jendela.L}m × ${jendela.T}m`;
+                htmlTabel += `
+                    <tr class="border-b border-gray-300">
+                        <td class="p-2 border-x-2 border-black text-left">${jendela.nama}</td>
+                        <td class="p-2 border-x-2 border-black text-center">${ukuran}</td>
+                        <td class="p-2 border-x-2 border-black text-right">Rp ${Math.round(totalHargaJendela).toLocaleString()}</td>
+                    </tr>
+                `;
+            });
+            document.getElementById('bodyBarang').innerHTML = htmlTabel;
         }
 
         function hitungTotal() {
@@ -183,6 +199,76 @@
             }
         }
 
+        async function cariInvoiceFromServer(noInvManual = null) {
+            const noInvoice = (noInvManual || document.getElementById('cariNoInvoice').value).trim().toUpperCase();
+            if(!noInvoice) return alert("Masukkan nomor invoice di kotak input biru terlebih dahulu!");
+            
+            const btn = document.getElementById('btnCariInv');
+            btn.innerText = "MENCARI...";
+            
+            try {
+                const res = await fetch(`${API_URL}?action=getInvoice&noInvoice=${noInvoice}`);
+                const data = await res.json();
+                
+                if(data.status === "sukses") {
+                    document.getElementById('display-inv').innerText = data.data.noInvoice;
+                    localStorage.setItem('invNum', data.data.noInvoice);
+                    
+                    document.getElementById('nama').value = data.data.nama || "";
+                    document.getElementById('alamat').value = data.data.alamat || "";
+                    document.getElementById('telp').value = data.data.telp || "";
+                    
+                    document.getElementById('nilaiDiskon').value = data.data.diskon || 0;
+                    document.getElementById('nilaiPpn').value = data.data.ppn || 0;
+                    document.getElementById('ongkir').value = data.data.ongkir || 0;
+                    document.getElementById('dp').value = data.data.dp || 0;
+                    
+                    let rincian = [];
+                    try { rincian = JSON.parse(data.data.rincianBarang); } catch(e) { rincian = []; }
+                    
+                    localStorage.setItem('listJendela', JSON.stringify(rincian));
+                    renderTabelBarang(rincian);
+                    hitungTotal();
+                    generateQRCode(data.data.noInvoice);
+                    
+                    alert("Invoice ditemukan! Sesuaikan nilai DP/Pembayaran untuk Pelunasan.");
+                } else {
+                    alert("Data tidak ditemukan: " + data.pesan);
+                }
+            } catch(e) {
+                alert("Koneksi gagal mengambil data.");
+            } finally {
+                btn.innerText = "CARI DATA";
+            }
+        }
+
+        function bukaScanner() {
+            document.getElementById('scannerModal').classList.remove('hidden');
+            html5QrcodeScanner = new Html5Qrcode("reader");
+            html5QrcodeScanner.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: 250 },
+                (qrText) => {
+                    document.getElementById('cariNoInvoice').value = qrText;
+                    tutupScanner();
+                    cariInvoiceFromServer(qrText);
+                },
+                (errorMessage) => {}
+            ).catch(err => alert("Gagal membuka kamera."));
+        }
+
+        function tutupScanner() {
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.stop().then(() => {
+                    document.getElementById('scannerModal').classList.add('hidden');
+                }).catch(err => {
+                    document.getElementById('scannerModal').classList.add('hidden');
+                });
+            } else {
+                document.getElementById('scannerModal').classList.add('hidden');
+            }
+        }
+
         async function simpanDanCetak() {
             syncPrintFields();
             const btn = document.getElementById('btnSimpanCetak');
@@ -190,7 +276,7 @@
             const nama = document.getElementById('nama').value;
 
             if(!nama) return alert("Nama pelanggan wajib diisi!");
-            btn.innerText = "MENYIMPAN KE SERVER...";
+            btn.innerText = "PROSES...";
             btn.disabled = true;
 
             const dataTransaksi = {
@@ -220,19 +306,18 @@
                 const result = await response.json();
                 
                 if(result.status === "sukses") {
-                    btn.innerText = "MEMBUAT DOKUMEN...";
                     setTimeout(() => {
                         window.print();
                         btn.innerText = "SIMPAN & PRINT";
                         btn.disabled = false;
                     }, 500);
                 } else {
-                    alert("Gagal simpan: " + result.pesan);
+                    alert("Gagal: " + result.pesan);
                     btn.innerText = "SIMPAN & PRINT";
                     btn.disabled = false;
                 }
             } catch (e) {
-                alert("Gangguan koneksi database. Cetak lokal tetap berjalan.");
+                alert("Gangguan server. Cetak lokal dipaksa.");
                 window.print();
                 btn.innerText = "SIMPAN & PRINT";
                 btn.disabled = false;
@@ -240,10 +325,12 @@
         }
 
         function transaksiBaru() {
-            const logInStatus = localStorage.getItem('isLoggedIn');
-            localStorage.clear(); 
-            if(logInStatus) localStorage.setItem('isLoggedIn', logInStatus);
-            window.location.href = "index.html"; 
+            if(confirm("Apakah Anda yakin ingin menghapus data layar ini dan membuat pesanan baru?")) {
+                const logInStatus = localStorage.getItem('isLoggedIn');
+                localStorage.clear(); 
+                if(logInStatus) localStorage.setItem('isLoggedIn', logInStatus);
+                window.location.href = "index.html"; 
+            }
         }
 
         async function cekLoginKeSheet() {
@@ -262,14 +349,18 @@
             } catch(e) { alert("Koneksi gagal"); btn.innerText = "MASUK"; }
         }
 
-        function logout() { localStorage.clear(); location.reload(); }
+        function logout() { 
+            if(confirm("Keluar dari sistem kasir?")) {
+                localStorage.clear(); 
+                location.reload(); 
+            }
+        }
 
         window.onload = () => { 
             if(localStorage.getItem('isLoggedIn') === 'true') {
                 document.getElementById('loginModal').style.display = 'none';
             }
             
-            // Dapatkan nomor invoice yang konsisten dari localStorage atau buat baru jika kosong
             let currentInv = localStorage.getItem('invNum');
             if(!currentInv || currentInv === "YG-LOADED") {
                 currentInv = 'YG-' + Date.now().toString().slice(-6);
