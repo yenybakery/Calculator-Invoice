@@ -18,24 +18,24 @@
             .grid-print { display: block !important; }
             .grid-print p { margin-bottom: 4px; }
         }
-        /* Style Stempel Paid */
+        /* Style Stempel Paid Tepat di Tengah Invoice */
         .stempel-paid {
             position: absolute;
-            top: 35%;
+            top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%) rotate(-12deg);
-            border: 4px dashed #16a34a;
+            transform: translate(-50%, -50%) rotate(-15deg);
+            border: 5px dashed #16a34a;
             color: #16a34a;
-            padding: 4px 12px;
-            font-size: 1.5rem;
+            padding: 8px 20px;
+            font-size: 2.5rem;
             text-transform: uppercase;
             font-weight: 900 !important;
-            letter-spacing: 2px;
-            border-radius: 8px;
-            opacity: 0.85;
-            background-color: rgba(255, 255, 255, 0.9);
+            letter-spacing: 4px;
+            border-radius: 12px;
+            opacity: 0.25; /* Transparan agar teks tabel di bawahnya tetap terbaca */
+            background-color: transparent;
             pointer-events: none;
-            z-index: 10;
+            z-index: 40;
         }
     </style>
 </head>
@@ -97,9 +97,9 @@
 
     <div class="max-w-3xl mx-auto bg-white p-6 rounded-lg shadow-lg border-2 border-black relative">
         
-        <!-- Wadah Stempel Paid -->
-        <div id="stempelPaidContainer" class="hidden stempel-paid">
-            PAID<br><span id="tglStempelPaid" class="text-[11px] block text-center -mt-1 tracking-normal font-normal">13/07/2026</span>
+        <!-- Wadah Stempel Paid (Posisi Tengah Tengah Halaman Luar) -->
+        <div id="stempelPaidContainer" class="hidden stempel-paid text-center">
+            PAID<br><span id="tglStempelPaid" class="text-xs block text-center -mt-1 tracking-normal font-normal">...</span>
         </div>
 
         <div class="text-center border-b-2 border-black pb-4 relative">
@@ -112,8 +112,7 @@
             <div class="flex justify-between items-end mt-4 pt-2 border-t border-dashed border-gray-400 text-left">
                 <div class="text-xs space-y-0.5">
                     <p class="text-sm font-black">Invoice: <span id="display-inv" class="text-blue-800">YG-LOADED</span></p>
-                    <p class="text-gray-600">Tgl Dibuat: <span id="tgl-dibuat" class="text-black">...</span></p>
-                    <p class="text-gray-600">Tgl Cetak: <span id="tgl-cetak" class="text-black">...</span></p>
+                    <p class="text-gray-600">Tanggal: <span id="tgl-dibuat" class="text-black">...</span></p>
                     <p class="text-xs text-gray-500 pt-1 no-print">Kasir: <span id="nama-kasir-aktif" class="text-black">...</span></p>
                 </div>
                 <div id="qrcode" class="flex justify-end"></div>
@@ -185,8 +184,6 @@
             document.getElementById('p-ongkir').innerText = ongkir.toLocaleString();
             document.getElementById('p-dp').innerText = dp.toLocaleString();
             document.getElementById('sisa-print').innerText = document.getElementById('sisa').innerText;
-            
-            document.getElementById('tgl-cetak').innerText = dapatkanStringTanggalLokal(new Date());
         }
 
         function hitungTotalSatuJendela(w) {
@@ -256,10 +253,11 @@
             let sisaTagihan = Math.round(grand - dp);
             document.getElementById('sisa').innerText = sisaTagihan.toLocaleString();
             
-            // Logika Stempel PAID Otomatis
+            // Logika Deteksi Stempel PAID Otomatis
             const stempel = document.getElementById('stempelPaidContainer');
             if (sisaTagihan <= 0 && grand > 0) {
-                document.getElementById('tglStempelPaid').innerText = dapatkanStringTanggalLokal(new Date()).split(' ')[0];
+                let tglDibuat = document.getElementById('tgl-dibuat').innerText.split(' ')[0];
+                document.getElementById('tglStempelPaid').innerText = tglDibuat;
                 stempel.classList.remove('hidden');
             } else {
                 stempel.classList.add('hidden');
@@ -310,14 +308,14 @@
             if(nominalBayar <= 0) return alert("Masukkan nominal pembayaran yang valid!");
             
             let dpLama = parseFloat(document.getElementById('dp').value) || 0;
-            document.getElementById('dp').value = dpLama + nominalBayar; // Tambahkan cicilan ke total uang masuk (DP)
+            document.getElementById('dp').value = dpLama + nominalBayar; 
             
             tutupModalTermin();
             hitungTotal();
-            alert("Pembayaran termin berhasil dimasukkan di form! Klik 'SIMPAN & PRINT' untuk memperbarui server database.");
+            alert("Pembayaran termin dimasukkan di form! Klik 'SIMPAN & PRINT' untuk memperbarui data di server.");
         }
 
-        // AMBIL DATA INVOICE DARI SERVER
+        // AMBUL DATA INVOICE DARI SERVER
         async function ambilDataInvoiceDariServer(noInvoice) {
             const btnCari = document.getElementById('btnProsesCari');
             if(btnCari) btnCari.innerText = "PROSES...";
@@ -339,7 +337,6 @@
                     document.getElementById('ongkir').value = data.data.ongkir || 0;
                     document.getElementById('dp').value = data.data.dp || 0;
                     
-                    // Load tanggal dibuat
                     let tglAwal = data.data.tanggal ? dapatkanStringTanggalLokal(new Date(data.data.tanggal)) : dapatkanStringTanggalLokal(new Date());
                     document.getElementById('tgl-dibuat').innerText = tglAwal;
                     localStorage.setItem('tglDibuat', tglAwal);
@@ -352,7 +349,7 @@
                     hitungTotal();
                     generateQRCode(data.data.noInvoice);
                     
-                    alert("Invoice ditemukan! Silakan masukkan pembayaran cicilan jika ada termin.");
+                    alert("Invoice ditemukan! Silakan sesuaikan pelunasan jika ada termin.");
                 } else {
                     alert("Data tidak ditemukan: " + data.pesan);
                 }
@@ -518,14 +515,18 @@
             }
         }
 
+        // KEMBALI KE KALKULATOR UTAMA
         function transaksiBaru() {
-            if(confirm("Apakah Anda yakin ingin mereset layar untuk membuat pesanan baru?")) {
+            if(confirm("Kembali ke Halaman Utama Kalkulator untuk membuat pesanan baru?")) {
                 const logInStatus = localStorage.getItem('isLoggedIn');
                 const namaKasir = localStorage.getItem('namaKasirAktif');
+                
                 localStorage.clear(); 
+                
                 if(logInStatus) localStorage.setItem('isLoggedIn', logInStatus);
                 if(namaKasir) localStorage.setItem('namaKasirAktif', namaKasir);
-                window.location.reload(); 
+                
+                window.location.href = 'index.html'; 
             }
         }
 
@@ -549,14 +550,12 @@
             }
             document.getElementById('display-inv').innerText = currentInv;
             
-            // Inisialisasi Tanggal Dibuat & Cetak Awal
             let tglDibuatSaved = localStorage.getItem('tglDibuat');
             if(!tglDibuatSaved) {
                 tglDibuatSaved = dapatkanStringTanggalLokal(new Date());
                 localStorage.setItem('tglDibuat', tglDibuatSaved);
             }
             document.getElementById('tgl-dibuat').innerText = tglDibuatSaved;
-            document.getElementById('tgl-cetak').innerText = dapatkanStringTanggalLokal(new Date());
 
             renderTabelBarang();
             hitungTotal();
