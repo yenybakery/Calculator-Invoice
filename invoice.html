@@ -11,7 +11,17 @@
     <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
     <style>
         body, input, table, th, td, p, h1, h2, span { font-weight: 800 !important; }
-        @media print { .no-print { display: none; } }
+        
+        /* Cetak teks alternatif untuk input saat print */
+        .print-text { display: none; }
+        
+        @media print { 
+            .no-print { display: none !important; } 
+            input { display: none !important; }
+            .print-text { display: inline-block !important; }
+            .grid-print { display: block !important; }
+            .grid-print p { margin-bottom: 4px; }
+        }
     </style>
 </head>
 <body class="bg-gray-100 p-4 font-bold text-black">
@@ -39,7 +49,7 @@
         </div>
     </div>
 
-    <!-- MODAL SCANNER KAMERA (HP / WEBCAM PC) -->
+    <!-- MODAL SCANNER KAMERA -->
     <div id="scannerModal" class="fixed inset-0 bg-black bg-opacity-70 z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white p-4 rounded-lg w-full max-w-md shadow-2xl border-2 border-black">
             <h3 class="text-center text-lg text-blue-800 mb-2">Arahkan Kamera ke QR Code</h3>
@@ -70,10 +80,19 @@
         </div>
 
         <!-- DETAIL PELANGGAN -->
-        <div class="grid grid-cols-1 gap-2 my-4">
-            <input type="text" id="nama" placeholder="Nama Pelanggan" class="w-full p-2 border-2 border-black rounded">
-            <input type="text" id="alamat" placeholder="Alamat Pelanggan" class="w-full p-2 border-2 border-black rounded">
-            <input type="text" id="telp" placeholder="No. Telepon" class="w-full p-2 border-2 border-black rounded">
+        <div class="grid grid-cols-1 gap-2 my-4 grid-print">
+            <div>
+                <input type="text" id="nama" placeholder="Nama Pelanggan" class="w-full p-2 border-2 border-black rounded">
+                <p class="print-text">Nama Pelanggan: <span id="p-nama"></span></p>
+            </div>
+            <div>
+                <input type="text" id="alamat" placeholder="Alamat Pelanggan" class="w-full p-2 border-2 border-black rounded">
+                <p class="print-text">Alamat: <span id="p-alamat"></span></p>
+            </div>
+            <div>
+                <input type="text" id="telp" placeholder="No. Telepon" class="w-full p-2 border-2 border-black rounded">
+                <p class="print-text">No. Telp: <span id="p-telp"></span></p>
+            </div>
         </div>
 
         <!-- TABEL DATA RINGKAS -->
@@ -93,11 +112,27 @@
         <!-- RINCIAN PEMBAYARAN -->
         <div class="space-y-2 border-t-2 border-black pt-4 text-right">
             <div>Subtotal: Rp <span id="subtotal">0</span></div>
-            <div>Diskon: <input type="number" id="nilaiDiskon" value="0" oninput="hitungTotal()" class="border-2 w-24 text-center"></div>
-            <div>PPN: <input type="number" id="nilaiPpn" value="0" oninput="hitungTotal()" class="border-2 w-24 text-center"></div>
-            <div>Ongkir: <input type="number" id="ongkir" value="0" oninput="hitungTotal()" class="border-2 w-24 text-center"></div>
+            <div>
+                Diskon: 
+                <input type="number" id="nilaiDiskon" value="0" oninput="hitungTotal()" class="border-2 w-24 text-center">
+                <span class="print-text" id="p-diskon">0</span>
+            </div>
+            <div>
+                PPN: 
+                <input type="number" id="nilaiPpn" value="0" oninput="hitungTotal()" class="border-2 w-24 text-center">
+                <span class="print-text" id="p-ppn">0</span>
+            </div>
+            <div>
+                Ongkir: 
+                <input type="number" id="ongkir" value="0" oninput="hitungTotal()" class="border-2 w-24 text-center">
+                <span class="print-text" id="p-ongkir">0</span>
+            </div>
             <div class="text-xl">Grand Total: Rp <span id="grandTotal">0</span></div>
-            <div class="text-blue-800">DP: <input type="number" id="dp" value="0" oninput="hitungTotal()" class="border-2 border-blue-800 w-24 text-center"></div>
+            <div class="text-blue-800">
+                DP: 
+                <input type="number" id="dp" value="0" oninput="hitungTotal()" class="border-2 border-blue-800 w-24 text-center">
+                <span class="print-text" id="p-dp">0</span>
+            </div>
             <div class="text-xl text-red-700">Sisa Tagihan: Rp <span id="sisa">0</span></div>
         </div>
 
@@ -118,7 +153,6 @@
     </div>
 
     <script>
-        // 1. REGISTRASI SERVICE WORKER PWA SECARA VALID
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
@@ -133,7 +167,6 @@
             deferredPrompt = e;
         });
 
-        // MASUKKAN URL DEPLOYMENT WEB APP ANDA DI SINI
         const API_URL = 'https://script.google.com/macros/s/AKfycbwaGIM27-COSwAD3ZsEtUpYwODGw75kaqay_xnizeUqyTyAZuO7xlEHDnafN1zJ9EVfWA/exec';
         
         const h = { jahit: 20000, smokring: 4500, rollet: 65000, rell: 50000, hook: 40000, tali: 50000, stick: 50000, instalasi: 50000 };
@@ -334,9 +367,18 @@
             document.getElementById('grandTotal').innerText = Math.round(grand).toLocaleString();
             let dp = parseFloat(document.getElementById('dp').value) || 0;
             document.getElementById('sisa').innerText = Math.round(grand - dp).toLocaleString();
+
+            // Masukkan data input ke teks cetak agar sinkron
+            document.getElementById('p-nama').innerText = document.getElementById('nama').value;
+            document.getElementById('p-alamat').innerText = document.getElementById('alamat').value;
+            document.getElementById('p-telp').innerText = document.getElementById('telp').value;
+            document.getElementById('p-diskon').innerText = dInput + (dInput < 100 ? "%" : "");
+            document.getElementById('p-ppn').innerText = pInput + (pInput < 100 ? "%" : "");
+            document.getElementById('p-ongkir').innerText = ongkir.toLocaleString();
+            document.getElementById('p-dp').innerText = dp.toLocaleString();
         }
 
-        // ================= PERBAIKAN ALUR PENGUNCIAN & CETAK NOTE =================
+        // ================= ALUR PENGUNCIAN & CETAK NOTE =================
         async function simpanDanCetak() {
             const noInvoice = document.getElementById('display-inv').innerText;
             const nama = document.getElementById('nama').value;
@@ -354,9 +396,10 @@
 
             if(!nama) return alert("Nama pelanggan tidak boleh kosong!");
 
+            // Update isi teks print sekali lagi sebelum dicetak
+            hitungTotal();
             renderTabelBarang();
             generateQRCode(noInvoice);
-            hitungTotal();
 
             const dataTransaksi = {
                 action: "simpanInvoice",
@@ -393,6 +436,7 @@
                     if(btn) btn.innerText = "MEMBUAT DOKUMEN CETAK...";
                     generateQRCode(noInvoice);
                     
+                    // Trigger Print Browser
                     window.print();
                     
                     const logInStatus = localStorage.getItem('isLoggedIn');
@@ -405,7 +449,7 @@
                             localStorage.setItem('aktifKasir', aktifKasir);
                         }
                         location.reload();
-                    }, 4000);
+                    }, 1000); // Waktu dipercepat agar lebih responsif setelah dialog print keluar
                 } else {
                     if(btn) btn.innerText = "SIMPAN & PRINT";
                     alert("Gagal menyimpan ke spreadsheet: " + result.pesan);
