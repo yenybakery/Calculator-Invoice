@@ -42,6 +42,18 @@
         </div>
     </div>
 
+    <!-- Modal Floating Cari Data Manual (Revisi Pendek & Ringkas) -->
+    <div id="cariModal" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white p-5 rounded-lg w-full max-w-xs shadow-2xl border-2 border-black text-center">
+            <h3 class="text-md text-blue-800 mb-3 font-black uppercase tracking-wide">Cari No. Invoice</h3>
+            <input type="text" id="cariNoInvoice" placeholder="Contoh: YG-405113" class="w-full p-2 border-2 border-blue-800 rounded bg-blue-50 uppercase text-center text-md tracking-wider mb-3">
+            <div class="grid grid-cols-2 gap-2 text-xs">
+                <button onclick="tutupModalCari()" class="bg-gray-500 text-white p-2 rounded font-bold uppercase">BATAL</button>
+                <button onclick="prosesCariInvoice()" id="btnProsesCari" class="bg-sky-700 text-white p-2 rounded font-black uppercase">CARI</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Scanner -->
     <div id="scannerModal" class="fixed inset-0 bg-black bg-opacity-70 z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white p-4 rounded-lg w-full max-w-md shadow-2xl border-2 border-black">
@@ -68,11 +80,6 @@
             </div>
         </div>
 
-        <!-- INPUT MANUAL INVOICE PELUNASAN -->
-        <div class="no-print mt-4 mb-2">
-            <input type="text" id="cariNoInvoice" placeholder="Ketik Nomor Invoice untuk Pelunasan Manual (Contoh: YG-123456)" class="w-full p-2 border-2 border-blue-800 rounded bg-blue-50 uppercase text-center text-sm">
-        </div>
-
         <div class="grid grid-cols-1 gap-2 my-4 grid-print">
             <div><input type="text" id="nama" placeholder="Nama Pelanggan" class="w-full p-2 border-2 border-black rounded"><p class="print-text">Nama Pelanggan: <span id="p-nama"></span></p></div>
             <div><input type="text" id="alamat" placeholder="Alamat Pelanggan" class="w-full p-2 border-2 border-black rounded"><p class="print-text">Alamat: <span id="p-alamat"></span></p></div>
@@ -97,7 +104,7 @@
         <!-- PANEL MENU UTAMA SEJAJAR HORIZONTAL -->
         <div class="no-print mt-8 pt-4 border-t-2 border-dashed border-gray-400 grid grid-cols-5 gap-2 text-center text-xs">
             <button id="btnSimpanCetak" onclick="simpanDanCetak()" class="bg-blue-800 text-white p-3 rounded font-black uppercase text-sm col-span-1 shadow-md hover:bg-blue-900">SIMPAN & PRINT</button>
-            <button onclick="cariInvoiceFromServer()" id="btnCariInv" class="bg-sky-700 text-white p-3 rounded font-bold uppercase col-span-1 hover:bg-sky-800">CARI DATA</button>
+            <button onclick="bukaModalCari()" class="bg-sky-700 text-white p-3 rounded font-bold uppercase col-span-1 hover:bg-sky-800">CARI DATA</button>
             <button onclick="bukaScanner()" class="bg-emerald-700 text-white p-3 rounded font-bold uppercase col-span-1 hover:bg-emerald-800">SCAN QR</button>
             <button onclick="transaksiBaru()" class="bg-gray-600 text-white p-3 rounded font-bold uppercase col-span-1 hover:bg-gray-700">PESANAN BARU</button>
             <button onclick="logout()" class="bg-red-950 text-white p-3 rounded font-bold uppercase col-span-1 hover:bg-red-900">LOGOUT</button>
@@ -105,12 +112,30 @@
     </div>
 
     <script>
-        // GANTI DENGAN LINK WEB APP APPS SCRIPT ANDA SETELAH BERHASIL DEPLOY BARU
+        // MENGGUNAKAN URL WEB APP BARU YANG ANDA BERIKAN
         const API_URL = 'https://script.google.com/macros/s/AKfycbyJYNUULjAZPgikQ5OKLAHLDg_ooXSLPd2rWpAaBbzqCfo98-cpkFDQrOrblei0S7yUoA/exec';
         
         const h = { jahit: 20000, smokring: 4500, rollet: 65000, rell: 50000, hook: 40000, tali: 50000, stick: 50000, instalasi: 50000 };
         let globalSubtotal = 0;
         let html5QrcodeScanner = null;
+
+        // FUNGSI KONTROL MODAL FLOATING CARI DATA
+        function bukaModalCari() {
+            document.getElementById('cariNoInvoice').value = "";
+            document.getElementById('cariModal').classList.remove('hidden');
+            setTimeout(() => document.getElementById('cariNoInvoice').focus(), 100);
+        }
+
+        function tutupModalCari() {
+            document.getElementById('cariModal').classList.add('hidden');
+        }
+
+        function prosesCariInvoice() {
+            const noInvoice = document.getElementById('cariNoInvoice').value.trim();
+            if(!noInvoice) return alert("Masukkan nomor invoice terlebih dahulu!");
+            tutupModalCari();
+            cariInvoiceFromServer(noInvoice);
+        }
 
         function syncPrintFields() {
             let dInput = parseFloat(document.getElementById('nilaiDiskon').value) || 0;
@@ -202,13 +227,14 @@
             }
         }
 
-        // AMBIL DATA BERDASARKAN INPUT MANUAL NOMOR INVOICE
-        async function cariInvoiceFromServer(noInvManual = null) {
-            const noInvoice = (noInvManual || document.getElementById('cariNoInvoice').value).trim().toUpperCase();
-            if(!noInvoice) return alert("Ketik dahulu Nomor Invoice di kolom biru sebelum mengklik CARI DATA!");
+        // AMBIL DATA DARI SERVER BERDASARKAN PARAMETER NO INVOICE
+        async function cariInvoiceFromServer(noInvoiceTarget) {
+            const noInvoice = noInvoiceTarget.trim().toUpperCase();
             
-            const btn = document.getElementById('btnCariInv');
-            btn.innerText = "PROSES...";
+            // Tampilkan status memuat pada teks kasir sementara
+            const statusKasir = document.getElementById('nama-kasir-aktif');
+            const originalText = statusKasir.innerText;
+            statusKasir.innerText = "Mencari data...";
             
             try {
                 const res = await fetch(`${API_URL}?action=getInvoice&noInvoice=${noInvoice}`);
@@ -242,11 +268,11 @@
             } catch(e) {
                 alert("Koneksi gagal mengambil data.");
             } finally {
-                btn.innerText = "CARI DATA";
+                statusKasir.innerText = originalText;
             }
         }
 
-        // SCANNER QR LANGSUNG JALAN TANPA KETIK
+        // SCANNER QR LANGSUNG JALAN
         function bukaScanner() {
             document.getElementById('scannerModal').classList.remove('hidden');
             html5QrcodeScanner = new Html5Qrcode("reader");
@@ -254,7 +280,6 @@
                 { facingMode: "environment" },
                 { fps: 10, qrbox: 250 },
                 (qrText) => {
-                    document.getElementById('cariNoInvoice').value = qrText;
                     tutupScanner();
                     cariInvoiceFromServer(qrText);
                 },
@@ -274,7 +299,7 @@
             }
         }
 
-        // SISTEM AUTHENTICATION KASIR & WAJIB GANTI PASSWORD
+        // AUTHENTICATION KASIR
         async function cekLoginKeSheet() {
             const id = document.getElementById('idKasirInput').value.trim().toUpperCase();
             const pass = document.getElementById('passInput').value.trim();
@@ -436,6 +461,13 @@
             renderTabelBarang();
             hitungTotal();
             generateQRCode(currentInv);
+
+            // Menghubungkan tombol Enter di input modal cari agar langsung memproses
+            document.getElementById('cariNoInvoice').addEventListener('keypress', function(e) {
+                if(e.key === 'Enter') {
+                    prosesCariInvoice();
+                }
+            });
         };
     </script>
 </body>
