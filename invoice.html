@@ -26,16 +26,16 @@
             transform: translate(-50%, -50%) rotate(-15deg);
             border: 5px dashed #16a34a;
             color: #16a34a;
-            padding: 8px 20px;
-            font-size: 2.5rem;
+            padding: 10px 30px;
+            font-size: 5rem;
             text-transform: uppercase;
             font-weight: 900 !important;
             letter-spacing: 4px;
             border-radius: 12px;
-            opacity: 0.25; /* Transparan agar teks tabel di bawahnya tetap terbaca */
+            opacity: 0.25; /* Transparan agar teks di bawahnya tetap terbaca saat diprint */
             background-color: transparent;
             pointer-events: none;
-            z-index: 40;
+            z-index: 50;
         }
     </style>
 </head>
@@ -95,11 +95,11 @@
         </div>
     </div>
 
-    <div class="max-w-3xl mx-auto bg-white p-6 rounded-lg shadow-lg border-2 border-black relative">
+    <div class="max-w-3xl mx-auto bg-white p-6 rounded-lg shadow-lg border-2 border-black relative min-h-[600px]">
         
-        <!-- Wadah Stempel Paid (Posisi Tengah Tengah Halaman Luar) -->
+        <!-- Wadah Stempel PAID Tepat di Tengah Seluruh Dokumen -->
         <div id="stempelPaidContainer" class="hidden stempel-paid text-center">
-            PAID<br><span id="tglStempelPaid" class="text-xs block text-center -mt-1 tracking-normal font-normal">...</span>
+            PAID<br><span id="tglStempelPaid" class="text-sm block tracking-normal font-normal -mt-2">...</span>
         </div>
 
         <div class="text-center border-b-2 border-black pb-4 relative">
@@ -108,6 +108,7 @@
             <div class="text-xs mt-3 text-gray-800 space-y-0.5">
                 <p>JL. Jend. Sudirman Berkoh - Purwokerto (53146)</p>
                 <p>Tlp. 0895-0421-5020 | Email: yenygorden@gmail.com</p>
+                <p>NIB: 3006260016473</P>
             </div>
             <div class="flex justify-between items-end mt-4 pt-2 border-t border-dashed border-gray-400 text-left">
                 <div class="text-xs space-y-0.5">
@@ -125,12 +126,19 @@
             <div><input type="text" id="telp" placeholder="No. Telepon" class="w-full p-2 border-2 border-black rounded"><p class="print-text">No. Telp: <span id="p-telp"></span></p></div>
         </div>
 
-        <table class="w-full mb-4 border-collapse border-2 border-black">
-            <thead><tr class="bg-gray-200"><th class="p-2 border-2 text-left">Nama Jendela</th><th class="p-2 border-2 w-32 text-center">Ukuran</th><th class="p-2 border-2 w-40 text-right">Harga</th></tr></thead>
+        <!-- Tombol Tambah Baris Manual -->
+        <div class="no-print mb-2 text-left">
+            <button onclick="tambahBarisManual()" class="bg-amber-600 text-white px-3 py-1.5 rounded text-xs hover:bg-amber-700 shadow flex items-center gap-1 font-black">
+                ➕ TAMBAH BARIS ITEM MANUAL
+            </button>
+        </div>
+
+        <table class="w-full mb-4 border-collapse border-2 border-black relative z-20">
+            <thead><tr class="bg-gray-200"><th class="p-2 border-2 text-left">Nama Jendela / Item</th><th class="p-2 border-2 w-32 text-center">Ukuran</th><th class="p-2 border-2 w-40 text-right">Harga</th></tr></thead>
             <tbody id="bodyBarang"></tbody>
         </table>
 
-        <div class="space-y-2 border-t-2 border-black pt-4 text-right">
+        <div class="space-y-2 border-t-2 border-black pt-4 text-right relative z-20">
             <div>Subtotal: Rp <span id="subtotal">0</span></div>
             <div>Diskon: <input type="number" id="nilaiDiskon" value="0" oninput="hitungTotal()" class="border-2 w-24 text-center"> <span class="print-text" id="p-diskon">0</span></div>
             <div>PPN: <input type="number" id="nilaiPpn" value="0" oninput="hitungTotal()" class="border-2 w-24 text-center"> <span class="print-text" id="p-ppn">0</span></div>
@@ -144,7 +152,7 @@
         </div>
 
         <!-- PANEL MENU UTAMA SEJAJAR HORIZONTAL -->
-        <div class="no-print mt-8 pt-4 border-t-2 border-dashed border-gray-400 grid grid-cols-5 gap-2 text-center text-xs">
+        <div class="no-print mt-8 pt-4 border-t-2 border-dashed border-gray-400 grid grid-cols-5 gap-2 text-center text-xs relative z-20">
             <button id="btnSimpanCetak" onclick="simpanDanCetak()" class="bg-blue-800 text-white p-3 rounded font-black uppercase text-sm col-span-1 shadow-md hover:bg-blue-900">SIMPAN & PRINT</button>
             <button onclick="bukaModalCari()" class="bg-sky-700 text-white p-3 rounded font-bold uppercase col-span-1 hover:bg-sky-800">CARI DATA</button>
             <button onclick="bukaScanner()" class="bg-emerald-700 text-white p-3 rounded font-bold uppercase col-span-1 hover:bg-emerald-800">SCAN QR</button>
@@ -159,6 +167,7 @@
         const h = { jahit: 20000, smokring: 4500, rollet: 65000, rell: 50000, hook: 40000, tali: 50000, stick: 50000, instalasi: 50000 };
         let globalSubtotal = 0;
         let html5QrcodeScanner = null;
+        let listJendela = []; // Array penampung item aktif
 
         function dapatkanStringTanggalLokal(objDate = new Date()) {
             if(isNaN(objDate.getTime())) return "-";
@@ -187,6 +196,8 @@
         }
 
         function hitungTotalSatuJendela(w) {
+            if(w.isManual) return parseFloat(w.hargaManual) || 0; // Jika baris manual, return harga manualnya langsung
+            
             let items = [], Lc = Math.max(w.L, 1);
             if(w.mode === 'curtain') {
                 let mK = (w.jenis === 'lokal') ? Math.ceil((w.L + 0.2) / 0.4) * (w.T + 0.3) : (w.L + 0.2) * 3;
@@ -212,30 +223,87 @@
             return items.reduce((s, i) => s + i.harga, 0);
         }
 
+        // FUNGSI MENAMBAH BARIS MANUAL LANGSUNG KE TABEL
+        function tambahBarisManual() {
+            let itemBaru = {
+                idManual: Date.now(),
+                isManual: true,
+                nama: "Item Kustom Baru",
+                ukuran: "-",
+                hargaManual: 0
+            };
+            listJendela.push(itemBaru);
+            localStorage.setItem('listJendela', JSON.stringify(listJendela));
+            renderTabelBarang(listJendela);
+        }
+
+        // Sinkronisasi data saat input manual di dalam tabel diketik oleh kasir
+        function updateNilaiManual(id, field, value) {
+            let idx = listJendela.findIndex(item => item.idManual === id);
+            if(idx !== -1) {
+                if(field === 'hargaManual') {
+                    listJendela[idx].hargaManual = parseFloat(value) || 0;
+                } else {
+                    listJendela[idx][field] = value;
+                }
+                localStorage.setItem('listJendela', JSON.stringify(listJendela));
+                
+                // Hitung ulang subtotal tanpa me-render ulang agar input tidak kehilangan fokus mengetik
+                globalSubtotal = 0;
+                listJendela.forEach(j => {
+                    globalSubtotal += hitungTotalSatuJendela(j);
+                });
+                hitungTotal();
+            }
+        }
+
         function renderTabelBarang(dataManual = null) {
-            let listJendela = [];
             if(dataManual) {
                 listJendela = dataManual;
             } else {
                 const savedList = localStorage.getItem('listJendela');
-                if(savedList) listJendela = JSON.parse(savedList);
+                listJendela = savedList ? JSON.parse(savedList) : [];
             }
 
             let htmlTabel = '';
             globalSubtotal = 0;
+            
             listJendela.forEach(jendela => {
                 let totalHargaJendela = hitungTotalSatuJendela(jendela);
                 globalSubtotal += totalHargaJendela;
-                let ukuran = `${jendela.L}m × ${jendela.T}m`;
-                htmlTabel += `
-                    <tr class="border-b border-gray-300">
-                        <td class="p-2 border-x-2 border-black text-left">${jendela.nama}</td>
-                        <td class="p-2 border-x-2 border-black text-center">${ukuran}</td>
-                        <td class="p-2 border-x-2 border-black text-right">Rp ${Math.round(totalHargaJendela).toLocaleString()}</td>
-                    </tr>
-                `;
+                
+                if(jendela.isManual) {
+                    // Baris Render Input Manual
+                    htmlTabel += `
+                        <tr class="border-b border-gray-300 bg-amber-50">
+                            <td class="p-1 border-x-2 border-black text-left">
+                                <input type="text" value="${jendela.nama}" oninput="updateNilaiManual(${jendela.idManual}, 'nama', this.value)" class="w-full bg-transparent p-1 border border-dashed border-gray-400 rounded">
+                                <span class="print-text">${jendela.nama}</span>
+                            </td>
+                            <td class="p-1 border-x-2 border-black text-center">
+                                <input type="text" value="${jendela.ukuran}" oninput="updateNilaiManual(${jendela.idManual}, 'ukuran', this.value)" class="w-24 bg-transparent p-1 border border-dashed border-gray-400 rounded text-center">
+                                <span class="print-text">${jendela.ukuran}</span>
+                            </td>
+                            <td class="p-1 border-x-2 border-black text-right">
+                                <span class="no-print">Rp </span><input type="number" value="${jendela.hargaManual}" oninput="updateNilaiManual(${jendela.idManual}, 'hargaManual', this.value)" class="w-28 bg-transparent p-1 border border-dashed border-gray-400 rounded text-right">
+                                <span class="print-text">Rp ${Math.round(totalHargaJendela).toLocaleString()}</span>
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    // Baris Kalkulator Otomatis
+                    let ukuran = `${jendela.L}m × ${jendela.T}m`;
+                    htmlTabel += `
+                        <tr class="border-b border-gray-300">
+                            <td class="p-2 border-x-2 border-black text-left">${jendela.nama}</td>
+                            <td class="p-2 border-x-2 border-black text-center">${ukuran}</td>
+                            <td class="p-2 border-x-2 border-black text-right">Rp ${Math.round(totalHargaJendela).toLocaleString()}</td>
+                        </tr>
+                    `;
+                }
             });
             document.getElementById('bodyBarang').innerHTML = htmlTabel;
+            hitungTotal();
         }
 
         function hitungTotal() {
@@ -253,7 +321,7 @@
             let sisaTagihan = Math.round(grand - dp);
             document.getElementById('sisa').innerText = sisaTagihan.toLocaleString();
             
-            // Logika Deteksi Stempel PAID Otomatis
+            // Logika Stempel PAID Otomatis
             const stempel = document.getElementById('stempelPaidContainer');
             if (sisaTagihan <= 0 && grand > 0) {
                 let tglDibuat = document.getElementById('tgl-dibuat').innerText.split(' ')[0];
@@ -315,7 +383,7 @@
             alert("Pembayaran termin dimasukkan di form! Klik 'SIMPAN & PRINT' untuk memperbarui data di server.");
         }
 
-        // AMBUL DATA INVOICE DARI SERVER
+        // AMBIL DATA INVOICE DARI SERVER
         async function ambilDataInvoiceDariServer(noInvoice) {
             const btnCari = document.getElementById('btnProsesCari');
             if(btnCari) btnCari.innerText = "PROSES...";
@@ -346,10 +414,9 @@
                     
                     localStorage.setItem('listJendela', JSON.stringify(rincian));
                     renderTabelBarang(rincian);
-                    hitungTotal();
                     generateQRCode(data.data.noInvoice);
                     
-                    alert("Invoice ditemukan! Silakan sesuaikan pelunasan jika ada termin.");
+                    alert("Invoice ditemukan! Silakan masukkan pembayaran cicilan jika ada termin.");
                 } else {
                     alert("Data tidak ditemukan: " + data.pesan);
                 }
@@ -483,7 +550,7 @@
                 grandTotal: parseFloat(document.getElementById('grandTotal').innerText.replace(/,/g, '')) || 0,
                 dp: parseFloat(document.getElementById('dp').value) || 0,
                 sisa: parseFloat(document.getElementById('sisa').innerText.replace(/,/g, '')) || 0,
-                rincianBarang: localStorage.getItem('listJendela') || "[]",
+                rincianBarang: JSON.stringify(listJendela),
                 kasir: localStorage.getItem('namaKasirAktif') || "Kasir Utama"
             };
 
@@ -515,17 +582,13 @@
             }
         }
 
-        // KEMBALI KE KALKULATOR UTAMA
         function transaksiBaru() {
             if(confirm("Kembali ke Halaman Utama Kalkulator untuk membuat pesanan baru?")) {
                 const logInStatus = localStorage.getItem('isLoggedIn');
                 const namaKasir = localStorage.getItem('namaKasirAktif');
-                
                 localStorage.clear(); 
-                
                 if(logInStatus) localStorage.setItem('isLoggedIn', logInStatus);
                 if(namaKasir) localStorage.setItem('namaKasirAktif', namaKasir);
-                
                 window.location.href = 'index.html'; 
             }
         }
@@ -558,7 +621,6 @@
             document.getElementById('tgl-dibuat').innerText = tglDibuatSaved;
 
             renderTabelBarang();
-            hitungTotal();
             generateQRCode(currentInv);
         };
     </script>
