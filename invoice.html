@@ -11,12 +11,44 @@
     <style>
         body, input, table, th, td, p, h1, h2, span { font-weight: 800 !important; }
         .print-text { display: none; }
+        
+        /* Gaya Stempel PAID */
+        .stempel-paid {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-15deg);
+            border: 5px solid #1e40af;
+            color: #1e40af;
+            padding: 10px 30px;
+            font-size: 3.5rem;
+            font-weight: 900;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            border-radius: 10px;
+            opacity: 0.25;
+            pointer-events: none;
+            display: none;
+            text-align: center;
+            line-height: 1;
+            z-index: 10;
+        }
+        .stempel-paid span {
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            display: block;
+            margin-top: 2px;
+            font-weight: 800;
+        }
+
         @media print { 
             .no-print { display: none !important; } 
             input { display: none !important; }
             .print-text { display: inline-block !important; }
             .grid-print { display: block !important; }
             .grid-print p { margin-bottom: 4px; }
+            /* Memastikan stempel ikut tercetak */
+            .stempel-paid { display: block !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
     </style>
 </head>
@@ -42,14 +74,27 @@
         </div>
     </div>
 
-    <!-- Modal Floating Cari Data Manual (Revisi Pendek & Ringkas) -->
-    <div id="cariModal" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden flex items-center justify-center p-4">
+    <!-- Modal Floating Cari Invoice Manual -->
+    <div id="cariModal" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden flex items-center justify-center p-4">
         <div class="bg-white p-5 rounded-lg w-full max-w-xs shadow-2xl border-2 border-black text-center">
-            <h3 class="text-md text-blue-800 mb-3 font-black uppercase tracking-wide">Cari No. Invoice</h3>
-            <input type="text" id="cariNoInvoice" placeholder="Contoh: YG-405113" class="w-full p-2 border-2 border-blue-800 rounded bg-blue-50 uppercase text-center text-md tracking-wider mb-3">
+            <h3 class="text-sm font-black text-blue-800 mb-3 uppercase tracking-wide">Cari No. Invoice</h3>
+            <input type="text" id="cariNoInvoice" placeholder="Contoh: YG-405113" class="w-full p-2 border-2 border-blue-800 rounded bg-blue-50 uppercase text-center text-sm mb-3">
             <div class="grid grid-cols-2 gap-2 text-xs">
-                <button onclick="tutupModalCari()" class="bg-gray-500 text-white p-2 rounded font-bold uppercase">BATAL</button>
-                <button onclick="prosesCariInvoice()" id="btnProsesCari" class="bg-sky-700 text-white p-2 rounded font-black uppercase">CARI</button>
+                <button onclick="prosesCariInvoiceManual()" id="btnProsesCari" class="bg-blue-800 text-white p-2 rounded font-bold uppercase">CARI</button>
+                <button onclick="tutupModalCari()" class="bg-gray-400 text-black p-2 rounded font-bold uppercase">BATAL</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Floating Input Termin / Sisa Tagihan -->
+    <div id="terminModal" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden flex items-center justify-center p-4">
+        <div class="bg-white p-5 rounded-lg w-full max-w-xs shadow-2xl border-2 border-black text-center">
+            <h3 class="text-sm font-black text-red-700 mb-1 uppercase tracking-wide">Input Pembayaran Termin</h3>
+            <p class="text-[10px] text-gray-500 mb-3">Masukkan nilai pembayaran tambahan untuk invoice ini</p>
+            <input type="number" id="inputBayarTermin" placeholder="Masukkan nominal (Rp)" class="w-full p-2 border-2 border-red-700 rounded bg-red-50 text-center text-sm mb-4">
+            <div class="grid grid-cols-2 gap-2 text-xs">
+                <button onclick="prosesBayarTermin()" class="bg-red-700 text-white p-2 rounded font-bold uppercase">TAMBAHKAN</button>
+                <button onclick="tutupModalTermin()" class="bg-gray-400 text-black p-2 rounded font-bold uppercase">BATAL</button>
             </div>
         </div>
     </div>
@@ -63,7 +108,11 @@
         </div>
     </div>
 
-    <div class="max-w-3xl mx-auto bg-white p-6 rounded-lg shadow-lg border-2 border-black">
+    <div class="max-w-3xl mx-auto bg-white p-6 rounded-lg shadow-lg border-2 border-black relative">
+        
+        <!-- Wadah Stempel PAID Utama -->
+        <div id="stempelPaid" class="stempel-paid">PAID<span>TERIMA KASIH</span></div>
+
         <div class="text-center border-b-2 border-black pb-4 relative">
             <h1 class="text-3xl text-blue-700 tracking-wide font-black">YENY GORDEN</h1>
             <p class="text-sm uppercase tracking-widest text-gray-700 -mt-1">custom blind & curtain</p>
@@ -98,7 +147,14 @@
             <div>Ongkir: <input type="number" id="ongkir" value="0" oninput="hitungTotal()" class="border-2 w-24 text-center"> <span class="print-text" id="p-ongkir">0</span></div>
             <div class="text-xl">Grand Total: Rp <span id="grandTotal">0</span></div>
             <div class="text-blue-800">DP: <input type="number" id="dp" value="0" oninput="hitungTotal()" class="border-2 border-blue-800 w-24 text-center"> <span class="print-text" id="p-dp">0</span></div>
-            <div class="text-xl text-red-700">Sisa Tagihan: Rp <span id="sisa">0</span></div>
+            
+            <!-- Elemen sisa tagihan yang bisa diklik -->
+            <div onclick="bukaModalTermin()" class="text-xl text-red-700 cursor-pointer hover:bg-red-50 p-1 rounded inline-block transition no-print" title="Klik untuk bayar cicilan/termin">
+                Sisa Tagihan: Rp <span id="sisa">0</span> 👈
+            </div>
+            <div class="text-xl text-red-700 hidden print-text">
+                Sisa Tagihan: Rp <span id="sisa-print">0</span>
+            </div>
         </div>
 
         <!-- PANEL MENU UTAMA SEJAJAR HORIZONTAL -->
@@ -112,30 +168,11 @@
     </div>
 
     <script>
-        // MENGGUNAKAN URL WEB APP BARU YANG ANDA BERIKAN
         const API_URL = 'https://script.google.com/macros/s/AKfycbyJYNUULjAZPgikQ5OKLAHLDg_ooXSLPd2rWpAaBbzqCfo98-cpkFDQrOrblei0S7yUoA/exec';
         
         const h = { jahit: 20000, smokring: 4500, rollet: 65000, rell: 50000, hook: 40000, tali: 50000, stick: 50000, instalasi: 50000 };
         let globalSubtotal = 0;
         let html5QrcodeScanner = null;
-
-        // FUNGSI KONTROL MODAL FLOATING CARI DATA
-        function bukaModalCari() {
-            document.getElementById('cariNoInvoice').value = "";
-            document.getElementById('cariModal').classList.remove('hidden');
-            setTimeout(() => document.getElementById('cariNoInvoice').focus(), 100);
-        }
-
-        function tutupModalCari() {
-            document.getElementById('cariModal').classList.add('hidden');
-        }
-
-        function prosesCariInvoice() {
-            const noInvoice = document.getElementById('cariNoInvoice').value.trim();
-            if(!noInvoice) return alert("Masukkan nomor invoice terlebih dahulu!");
-            tutupModalCari();
-            cariInvoiceFromServer(noInvoice);
-        }
 
         function syncPrintFields() {
             let dInput = parseFloat(document.getElementById('nilaiDiskon').value) || 0;
@@ -150,6 +187,7 @@
             document.getElementById('p-ppn').innerText = pInput + (pInput < 100 ? "%" : "");
             document.getElementById('p-ongkir').innerText = ongkir.toLocaleString();
             document.getElementById('p-dp').innerText = dp.toLocaleString();
+            document.getElementById('sisa-print').innerText = document.getElementById('sisa').innerText;
         }
 
         function hitungTotalSatuJendela(w) {
@@ -215,7 +253,18 @@
             let grand = (sub - diskon) + ppn + ongkir;
             document.getElementById('grandTotal').innerText = Math.round(grand).toLocaleString();
             let dp = parseFloat(document.getElementById('dp').value) || 0;
-            document.getElementById('sisa').innerText = Math.round(grand - dp).toLocaleString();
+            
+            let kalkulasiSisa = Math.max(0, Math.round(grand - dp));
+            document.getElementById('sisa').innerText = kalkulasiSisa.toLocaleString();
+            
+            // Logika kontrol stempel PAID otomatis
+            const stempel = document.getElementById('stempelPaid');
+            if(grand > 0 && kalkulasiSisa === 0) {
+                stempel.style.display = "block";
+            } else {
+                stempel.style.display = "none";
+            }
+            
             syncPrintFields();
         }
 
@@ -227,14 +276,51 @@
             }
         }
 
-        // AMBIL DATA DARI SERVER BERDASARKAN PARAMETER NO INVOICE
-        async function cariInvoiceFromServer(noInvoiceTarget) {
-            const noInvoice = noInvoiceTarget.trim().toUpperCase();
+        // KONTROL FLOATING MODAL CARI MANUAL
+        function bukaModalCari() {
+            document.getElementById('cariNoInvoice').value = "";
+            document.getElementById('cariModal').classList.remove('hidden');
+            setTimeout(() => document.getElementById('cariNoInvoice').focus(), 100);
+        }
+
+        function tutupModalCari() {
+            document.getElementById('cariModal').classList.add('hidden');
+        }
+
+        function prosesCariInvoiceManual() {
+            const noInvoice = document.getElementById('cariNoInvoice').value.trim().toUpperCase();
+            if(!noInvoice) return alert("Ketik dahulu Nomor Invoice!");
+            tutupModalCari();
+            ambilDataInvoiceDariServer(noInvoice);
+        }
+
+        // KONTROL FLOATING MODAL PEMBAYARAN TERMIN
+        function bukaModalTermin() {
+            document.getElementById('inputBayarTermin').value = "";
+            document.getElementById('terminModal').classList.remove('hidden');
+            setTimeout(() => document.getElementById('inputBayarTermin').focus(), 100);
+        }
+
+        function tutupModalTermin() {
+            document.getElementById('terminModal').classList.add('hidden');
+        }
+
+        function prosesBayarTermin() {
+            let nilaiBayar = parseFloat(document.getElementById('inputBayarTermin').value) || 0;
+            if(nilaiBayar <= 0) return alert("Masukkan nominal pembayaran valid!");
             
-            // Tampilkan status memuat pada teks kasir sementara
-            const statusKasir = document.getElementById('nama-kasir-aktif');
-            const originalText = statusKasir.innerText;
-            statusKasir.innerText = "Mencari data...";
+            let dpLama = parseFloat(document.getElementById('dp').value) || 0;
+            document.getElementById('dp').value = dpLama + nilaiBayar; // Tambah akumulasi ke DP
+            
+            tutupModalTermin();
+            hitungTotal();
+            alert("Termin berhasil diinput! Klik SIMPAN & PRINT untuk memperbarui status di Google Sheet.");
+        }
+
+        // CORE ENGINE PENGAMBILAN DATA INVOICE
+        async function ambilDataInvoiceDariServer(noInvoice) {
+            const btnCari = document.getElementById('btnProsesCari');
+            btnCari.innerText = "PROSES...";
             
             try {
                 const res = await fetch(`${API_URL}?action=getInvoice&noInvoice=${noInvoice}`);
@@ -268,11 +354,11 @@
             } catch(e) {
                 alert("Koneksi gagal mengambil data.");
             } finally {
-                statusKasir.innerText = originalText;
+                btnCari.innerText = "CARI";
             }
         }
 
-        // SCANNER QR LANGSUNG JALAN
+        // SCANNER QR LANGSUNG JALAN TANPA INPUT MANUAL
         function bukaScanner() {
             document.getElementById('scannerModal').classList.remove('hidden');
             html5QrcodeScanner = new Html5Qrcode("reader");
@@ -281,7 +367,7 @@
                 { fps: 10, qrbox: 250 },
                 (qrText) => {
                     tutupScanner();
-                    cariInvoiceFromServer(qrText);
+                    ambilDataInvoiceDariServer(qrText);
                 },
                 (errorMessage) => {}
             ).catch(err => alert("Gagal membuka kamera."));
@@ -299,7 +385,7 @@
             }
         }
 
-        // AUTHENTICATION KASIR
+        // SISTEM AUTHENTICATION KASIR & WAJIB GANTI PASSWORD
         async function cekLoginKeSheet() {
             const id = document.getElementById('idKasirInput').value.trim().toUpperCase();
             const pass = document.getElementById('passInput').value.trim();
@@ -461,13 +547,6 @@
             renderTabelBarang();
             hitungTotal();
             generateQRCode(currentInv);
-
-            // Menghubungkan tombol Enter di input modal cari agar langsung memproses
-            document.getElementById('cariNoInvoice').addEventListener('keypress', function(e) {
-                if(e.key === 'Enter') {
-                    prosesCariInvoice();
-                }
-            });
         };
     </script>
 </body>
