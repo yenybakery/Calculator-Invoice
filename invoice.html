@@ -33,7 +33,7 @@
             font-weight: 900 !important;
             letter-spacing: 6px;
             border-radius: 16px;
-            opacity: 0.25; /* Transparan agar tulisan di bawahnya tetap terbaca */
+            opacity: 0.25;
             background-color: transparent;
             pointer-events: none;
             z-index: 50;
@@ -145,17 +145,39 @@
             <tbody id="bodyBarang"></tbody>
         </table>
 
+        <!-- RINCIAN HARGA & TOTAL -->
         <div class="space-y-2 border-t-2 border-black pt-4 text-right relative z-20">
             <div>Subtotal: Rp <span id="subtotal">0</span></div>
             <div>Diskon: <input type="number" id="nilaiDiskon" value="0" oninput="hitungTotal()" class="border-2 w-24 text-center"> <span class="print-text" id="p-diskon">0</span></div>
             <div>PPN: <input type="number" id="nilaiPpn" value="0" oninput="hitungTotal()" class="border-2 w-24 text-center"> <span class="print-text" id="p-ppn">0</span></div>
             <div>Ongkir: <input type="number" id="ongkir" value="0" oninput="hitungTotal()" class="border-2 w-24 text-center"> <span class="print-text" id="p-ongkir">0</span></div>
             <div class="text-xl">Grand Total: Rp <span id="grandTotal">0</span></div>
-            <div class="text-blue-800">DP / Telah Bayar: <input type="number" id="dp" value="0" oninput="hitungTotal()" class="border-2 border-blue-800 w-24 text-center"> <span class="print-text" id="p-dp">0</span></div>
+            <div class="text-blue-800">Total DP (Terbayar): <input type="number" id="dp" value="0" oninput="hitungTotal()" class="border-2 border-blue-800 w-24 text-center" readonly> <span class="print-text" id="p-dp">0</span></div>
             <div onclick="bukaModalTermin()" class="text-xl text-red-700 cursor-pointer hover:bg-red-50 p-1 rounded inline-block transition no-print" title="Klik untuk input cicilan termin">
-                Sisa Tagihan: Rp <span id="sisa">0</span> 👈 <span class="text-xs bg-red-100 px-1 py-0.5 rounded text-red-700 animate-pulse font-normal">Klik untuk Bayar Termin</span>
+                Sisa Tagihan: Rp <span id="sisa">0</span> 👈 <span class="text-xs bg-red-100 px-1 py-0.5 rounded text-red-700 animate-pulse font-normal">Klik untuk Bayar Cicilan</span>
             </div>
             <div class="text-xl text-red-700 print-text">Sisa Tagihan: Rp <span id="sisa-print">0</span></div>
+        </div>
+
+        <!-- TABEL RIWAYAT CICILAN PEMBAYARAN -->
+        <div class="mt-6 pt-4 border-t-2 border-black relative z-20">
+            <h3 class="text-xs font-black uppercase text-gray-700 mb-2 text-left">Riwayat Cicilan Pembayaran</h3>
+            <table class="w-full text-xs text-left border-collapse border border-gray-300">
+                <thead>
+                    <tr class="bg-gray-100 text-gray-700">
+                        <th class="p-2 border border-gray-300 w-12 text-center">No</th>
+                        <th class="p-2 border border-gray-300">Tanggal & Waktu</th>
+                        <th class="p-2 border border-gray-300 text-right">Nominal Cicilan</th>
+                        <th class="p-2 border border-gray-300">Kasir</th>
+                        <th class="p-2 border border-gray-300 text-center no-print w-16">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="bodyRiwayatPembayaran">
+                    <tr>
+                        <td colspan="5" class="p-3 text-center text-gray-400 italic">Belum ada riwayat pembayaran (Belum DP)</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
 
         <!-- PANEL MENU UTAMA -->
@@ -175,6 +197,7 @@
         let globalSubtotal = 0;
         let html5QrcodeScanner = null;
         let listJendela = []; 
+        let riwayatPembayaran = []; // Menyimpan array objek cicilan [{tanggal, nominal, kasir}]
 
         function dapatkanStringTanggalLokal(objDate = new Date()) {
             if(isNaN(objDate.getTime())) return "-";
@@ -325,6 +348,35 @@
             hitungTotal();
         }
 
+        // RENDERING DAFTAR CICILAN
+        function renderRiwayatPembayaran() {
+            const body = document.getElementById('bodyRiwayatPembayaran');
+            if (riwayatPembayaran.length === 0) {
+                body.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="p-3 text-center text-gray-400 italic">Belum ada riwayat pembayaran (Belum DP)</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            let html = '';
+            riwayatPembayaran.forEach((p, idx) => {
+                html += `
+                    <tr class="border-b border-gray-300">
+                        <td class="p-2 border border-gray-300 text-center">${idx + 1}</td>
+                        <td class="p-2 border border-gray-300">${p.tanggal}</td>
+                        <td class="p-2 border border-gray-300 text-right">Rp ${Math.round(p.nominal).toLocaleString()}</td>
+                        <td class="p-2 border border-gray-300">${p.kasir}</td>
+                        <td class="p-2 border border-gray-300 text-center no-print">
+                            <button onclick="hapusCicilan(${idx})" class="bg-red-500 hover:bg-red-600 text-white px-1.5 py-0.5 rounded text-[10px] font-bold">❌</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            body.innerHTML = html;
+        }
+
         function hitungTotal() {
             let sub = globalSubtotal;
             document.getElementById('subtotal').innerText = Math.round(sub).toLocaleString();
@@ -335,9 +387,12 @@
             let ongkir = parseFloat(document.getElementById('ongkir').value) || 0;
             let grand = (sub - diskon) + ppn + ongkir;
             document.getElementById('grandTotal').innerText = Math.round(grand).toLocaleString();
-            let dp = parseFloat(document.getElementById('dp').value) || 0;
             
-            let sisaTagihan = Math.round(grand - dp);
+            // DP otomatis dihitung dari penjumlahan seluruh riwayat cicilan
+            let totalDp = riwayatPembayaran.reduce((sum, item) => sum + item.nominal, 0);
+            document.getElementById('dp').value = totalDp;
+            
+            let sisaTagihan = Math.round(grand - totalDp);
             document.getElementById('sisa').innerText = sisaTagihan.toLocaleString();
             
             // Logika Stempel PAID Otomatis
@@ -379,7 +434,7 @@
             ambilDataInvoiceDariServer(noInvoice);
         }
 
-        // TERMIN
+        // TERMIN / CICILAN INPUT
         function bukaModalTermin() {
             document.getElementById('inputBayarTermin').value = "";
             document.getElementById('terminModal').classList.remove('hidden');
@@ -394,12 +449,31 @@
             let nominalBayar = parseFloat(document.getElementById('inputBayarTermin').value) || 0;
             if(nominalBayar <= 0) return alert("Masukkan nominal pembayaran yang valid!");
             
-            let dpLama = parseFloat(document.getElementById('dp').value) || 0;
-            document.getElementById('dp').value = dpLama + nominalBayar; 
+            let kasirAktif = localStorage.getItem('namaKasirAktif') || "Kasir";
+            let tglBayar = dapatkanStringTanggalLokal(new Date());
+
+            // Masukkan data transaksi ke riwayat cicilan
+            riwayatPembayaran.push({
+                tanggal: tglBayar,
+                nominal: nominalBayar,
+                kasir: kasirAktif
+            });
+
+            localStorage.setItem('riwayatPembayaran', JSON.stringify(riwayatPembayaran));
             
             tutupModalTermin();
+            renderRiwayatPembayaran();
             hitungTotal();
-            alert("Sisa tagihan di-update! Tekan 'SIMPAN & PRINT' untuk mengirim perubahan ke Google Sheet.");
+            alert("Cicilan baru ditambahkan! Tekan 'SIMPAN & PRINT' untuk mengirim perubahan ke Google Sheet.");
+        }
+
+        function hapusCicilan(idx) {
+            if(confirm("Apakah Anda yakin ingin menghapus catatan pembayaran ini? (Ini akan mengurangi nilai Total Terbayar)")) {
+                riwayatPembayaran.splice(idx, 1);
+                localStorage.setItem('riwayatPembayaran', JSON.stringify(riwayatPembayaran));
+                renderRiwayatPembayaran();
+                hitungTotal();
+            }
         }
 
         async function ambilDataInvoiceDariServer(noInvoice) {
@@ -421,7 +495,6 @@
                     document.getElementById('nilaiDiskon').value = data.data.diskon || 0;
                     document.getElementById('nilaiPpn').value = data.data.ppn || 0;
                     document.getElementById('ongkir').value = data.data.ongkir || 0;
-                    document.getElementById('dp').value = data.data.dp || 0;
                     
                     let tglAwal = data.data.tanggal ? dapatkanStringTanggalLokal(new Date(data.data.tanggal)) : dapatkanStringTanggalLokal(new Date());
                     document.getElementById('tgl-dibuat').innerText = tglAwal;
@@ -429,9 +502,19 @@
 
                     let rincian = [];
                     try { rincian = JSON.parse(data.data.rincianBarang); } catch(e) { rincian = []; }
-                    
                     localStorage.setItem('listJendela', JSON.stringify(rincian));
+
+                    // Memuat riwayat pembayaran baru
+                    try { 
+                        riwayatPembayaran = JSON.parse(data.data.riwayatPembayaran); 
+                        if (!Array.isArray(riwayatPembayaran)) riwayatPembayaran = [];
+                    } catch(e) { 
+                        riwayatPembayaran = []; 
+                    }
+                    localStorage.setItem('riwayatPembayaran', JSON.stringify(riwayatPembayaran));
+                    
                     renderTabelBarang(rincian);
+                    renderRiwayatPembayaran();
                     generateQRCode(data.data.noInvoice);
                     
                     alert("Data invoice berhasil di-load!");
@@ -556,6 +639,7 @@
 
             const dataTransaksi = {
                 action: "simpanInvoice",
+                tanggal: new Date(),
                 noInvoice: noInvoice, 
                 nama: nama,
                 alamat: document.getElementById('alamat').value,
@@ -568,7 +652,8 @@
                 dp: parseFloat(document.getElementById('dp').value) || 0,
                 sisa: parseFloat(document.getElementById('sisa').innerText.replace(/,/g, '')) || 0,
                 rincianBarang: JSON.stringify(listJendela),
-                kasir: localStorage.getItem('namaKasirAktif') || "Kasir Utama"
+                kasir: localStorage.getItem('namaKasirAktif') || "Kasir Utama",
+                riwayatPembayaran: JSON.stringify(riwayatPembayaran) // Menyimpan riwayat sebagai format string JSON
             };
 
             try {
@@ -637,7 +722,12 @@
             }
             document.getElementById('tgl-dibuat').innerText = tglDibuatSaved;
 
+            // Load data riwayat dari localStorage jika ada
+            const savedRiwayat = localStorage.getItem('riwayatPembayaran');
+            riwayatPembayaran = savedRiwayat ? JSON.parse(savedRiwayat) : [];
+
             renderTabelBarang();
+            renderRiwayatPembayaran();
             generateQRCode(currentInv);
         };
     </script>
