@@ -15,16 +15,79 @@
         .switch-toggle { position: absolute; left: 5px; width: 48%; height: 40px; background: var(--accent); border-radius: 20px; transition: 0.3s; }
         .mode-blinds .switch-toggle { transform: translateX(100%); }
         .window-card { border: 1px solid #444; padding: 15px; margin-bottom: 10px; border-radius: 8px; background: #252525; }
+
+        /* --- STYLING CUSTOM MODAL (TAMPIL PENUH TANPA SCROLL) --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+            overflow-y: auto; /* Jika seluruh modal melebihi tinggi layar ponsel, layar utama yang men-scroll, bukan isi modalnya */
+            padding: 20px;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal-content {
+            background: var(--panel);
+            border: 2px solid var(--accent);
+            border-radius: 12px;
+            width: 100%;
+            max-width: 450px;
+            padding: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            transform: scale(0.85);
+            transition: transform 0.25s ease;
+            margin: auto; /* Memastikan posisi tetap seimbang di tengah layar */
+        }
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+        .modal-header {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: var(--accent);
+            border-bottom: 1px solid #444;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+        .modal-body {
+            /* max-height dan overflow-y dihapus agar otomatis menjabarkan seluruh item ke bawah */
+            text-align: left;
+            font-size: 0.95rem;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #2d2d2d;
+        }
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        .modal-footer {
+            margin-top: 20px;
+        }
     </style>
     <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1e40af">
-<script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js')
-      .then(() => console.log('Service Worker Registered'));
-  }
-</script>
-
+    <meta name="theme-color" content="#1e40af">
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js')
+          .then(() => console.log('Service Worker Registered'));
+      }
+    </script>
 </head>
 <body>
 
@@ -32,8 +95,8 @@
     <h2>Input Data</h2>
     <div class="switch-wrapper" onclick="toggleMode()" id="switchBox">
         <div class="switch-toggle"></div>
-        <div style="flex:1; text-align:center; font-weight:bold; z-index:1;">CURTAIN</div>
-        <div style="flex:1; text-align:center; font-weight:bold; z-index:1;">BLINDS</div>
+        <div style="flex:1; text-align:center; font-weight:bold; z-index:1; color: #fff;">CURTAIN</div>
+        <div style="flex:1; text-align:center; font-weight:bold; z-index:1; color: #fff;">BLINDS</div>
     </div>
 
     <input type="text" id="nama" placeholder="Nama Jendela">
@@ -86,6 +149,19 @@
     <h2>Daftar Jendela</h2>
     <div id="daftarJendela"></div>
     <h3 id="totalSemua">Total: Rp 0</h3>
+</div>
+
+<!-- CONTAINER CUSTOM MODAL -->
+<div id="customModal" class="modal-overlay" onclick="tutupModalLuar(event)">
+    <div class="modal-content">
+        <div id="modalTitle" class="modal-header">Rincian Perhitungan</div>
+        <div id="modalBody" class="modal-body">
+            <!-- Data rincian dinamis akan dirender di sini -->
+        </div>
+        <div class="modal-footer">
+            <button onclick="tutupModal()">TUTUP</button>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -167,23 +243,68 @@ function render() {
     let cont = document.getElementById('daftarJendela'), grand = 0;
     cont.innerHTML = list.map(w => {
         let res = hitung(w); grand += res.total;
-        return `<div class="window-card"><strong>${w.nama}</strong>: Rp ${res.total.toLocaleString()} 
-        <button onclick="alert(\`${res.items.map(i=>i.nama+': '+i.qty+' - Rp '+i.harga.toLocaleString()).join('\\n')}\`)">Detail</button>
-        <button onclick="list=list.filter(x=>x.id!=${w.id});render()">Hapus</button></div>`;
+        
+        let secureData = encodeURIComponent(JSON.stringify({ nama: w.nama, items: res.items, total: res.total }));
+
+        return `<div class="window-card">
+            <strong>${w.nama}</strong>: Rp ${res.total.toLocaleString()} 
+            <button onclick="bukaModal('${secureData}')">Detail</button>
+            <button onclick="list=list.filter(x=>x.id!=${w.id});render()">Hapus</button>
+        </div>`;
     }).join('');
     document.getElementById('totalSemua').innerText = "Total Semua: Rp " + grand.toLocaleString();
 }
+
+// --- FUNGSI CUSTOM MODAL ---
+function bukaModal(encodedData) {
+    const data = JSON.parse(decodeURIComponent(encodedData));
+    
+    document.getElementById('modalTitle').innerText = "Rincian: " + data.nama;
+    
+    let bodyHtml = '';
+    data.items.forEach(item => {
+        bodyHtml += `
+            <div class="detail-row">
+                <div>
+                    <div style="font-weight: bold;">${item.nama}</div>
+                    <div style="font-size: 0.8rem; color: #aaa;">Qty: ${item.qty}</div>
+                </div>
+                <div style="font-weight: bold; color: var(--accent);">
+                    Rp ${Math.round(item.harga).toLocaleString()}
+                </div>
+            </div>
+        `;
+    });
+    
+    bodyHtml += `
+        <div class="detail-row" style="border-top: 2px solid var(--accent); margin-top: 10px; padding-top: 12px; font-size: 1.1rem;">
+            <strong>TOTAL AKHIR</strong>
+            <strong style="color: #4af2a1;">Rp ${Math.round(data.total).toLocaleString()}</strong>
+        </div>
+    `;
+    
+    document.getElementById('modalBody').innerHTML = bodyHtml;
+    document.getElementById('customModal').classList.add('active');
+}
+
+function tutupModal() {
+    document.getElementById('customModal').classList.remove('active');
+}
+
+function tutupModalLuar(event) {
+    if (event.target.id === 'customModal') {
+        tutupModal();
+    }
+}
 </script>
+
 <button onclick="lanjutKeInvoice()" style="background:#28a745; width:100%; padding:15px; margin-top:20px; font-size:18px; cursor:pointer;">LANJUT KE INVOICE</button>
 
 <script>
 function lanjutKeInvoice() {
-    // Menyimpan list jendela dan total ke memori browser
     const totalSemua = document.getElementById('totalSemua').innerText.replace('Total Semua: Rp ', '').replace(/,/g, '');
     localStorage.setItem('listJendela', JSON.stringify(list));
     localStorage.setItem('totalSemua', totalSemua);
-    
-    // Pindah ke halaman invoice
     window.location.href = 'invoice.html';
 }
 </script>
