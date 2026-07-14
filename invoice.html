@@ -116,7 +116,14 @@
                     <p class="text-gray-600">Tanggal: <span id="tgl-dibuat" class="text-black">...</span></p>
                     <p class="text-xs text-gray-500 pt-1 no-print">Kasir: <span id="nama-kasir-aktif" class="text-black">...</span></p>
                 </div>
-                <div id="qrcode" class="flex justify-end"></div>
+                
+                <!-- Kontainer QR Code yang Stabil & Dilengkapi Logo Tengah Akurat -->
+                <div id="qrcode-container" class="relative flex items-center justify-center bg-white p-1 rounded border border-slate-300 w-[68px] h-[68px]">
+                    <div id="qrcode" class="flex items-center justify-center"></div> 
+                    <img src="https://raw.githubusercontent.com/yeny-gorden/Invoice-Calculator/base/logo.png" 
+                         class="absolute w-5 h-5 rounded-full border border-white bg-white shadow-sm top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" 
+                         alt="Logo">
+                </div>
             </div>
         </div>
 
@@ -152,7 +159,7 @@
             <div>PPN: <input type="number" id="nilaiPpn" value="0" oninput="hitungTotal()" class="border-2 w-24 text-center"> <span class="print-text" id="p-ppn">0</span></div>
             <div>Ongkir: <input type="number" id="ongkir" value="0" oninput="hitungTotal()" class="border-2 w-24 text-center"> <span class="print-text" id="p-ongkir">0</span></div>
             <div class="text-xl">Grand Total: Rp <span id="grandTotal">0</span></div>
-            <div class="text-blue-800">Total DP (Terbayar): <input type="number" id="dp" value="0" oninput="hitungTotal()" class="border-2 border-blue-800 w-24 text-center" readonly> <span class="print-text" id="p-dp">0</span></div>
+            <div class="text-blue-800">Total Terbayar (DP): Rp <input type="number" id="dp" value="0" oninput="hitungTotal()" class="border-2 border-blue-800 w-24 text-center bg-gray-50 font-black" readonly> <span class="print-text" id="p-dp">0</span></div>
             <div onclick="bukaModalTermin()" class="text-xl text-red-700 cursor-pointer hover:bg-red-50 p-1 rounded inline-block transition no-print" title="Klik untuk input cicilan termin">
                 Sisa Tagihan: Rp <span id="sisa">0</span> 👈 <span class="text-xs bg-red-100 px-1 py-0.5 rounded text-red-700 animate-pulse font-normal">Klik untuk Bayar Cicilan</span>
             </div>
@@ -191,13 +198,14 @@
     </div>
 
     <script>
+        // ISI URL WEB APP SCRIPT ANDA DI SINI
         const API_URL = 'https://script.google.com/macros/s/AKfycbyJYNUULjAZPgikQ5OKLAHLDg_ooXSLPd2rWpAaBbzqCfo98-cpkFDQrOrblei0S7yUoA/exec';
         
         const h = { jahit: 20000, smokring: 4500, rollet: 65000, rell: 50000, hook: 40000, tali: 50000, stick: 50000, instalasi: 50000 };
         let globalSubtotal = 0;
         let html5QrcodeScanner = null;
         let listJendela = []; 
-        let riwayatPembayaran = []; // Menyimpan array objek cicilan [{tanggal, nominal, kasir}]
+        let riwayatPembayaran = []; 
 
         function dapatkanStringTanggalLokal(objDate = new Date()) {
             if(isNaN(objDate.getTime())) return "-";
@@ -253,7 +261,6 @@
             return items.reduce((s, i) => s + i.harga, 0);
         }
 
-        // TAMBAH BARIS MANUAL
         function tambahBarisManual() {
             let itemBaru = {
                 idManual: Date.now(),
@@ -267,7 +274,6 @@
             renderTabelBarang(listJendela);
         }
 
-        // PROSES HAPUS BARIS
         function hapusBaris(index) {
             if(confirm("Apakah Anda yakin ingin menghapus item ini dari invoice?")) {
                 listJendela.splice(index, 1);
@@ -276,7 +282,6 @@
             }
         }
 
-        // INPUT MANUAL SINKRON
         function updateNilaiManual(id, field, value) {
             let idx = listJendela.findIndex(item => item.idManual === id);
             if(idx !== -1) {
@@ -348,7 +353,6 @@
             hitungTotal();
         }
 
-        // RENDERING DAFTAR CICILAN
         function renderRiwayatPembayaran() {
             const body = document.getElementById('bodyRiwayatPembayaran');
             if (riwayatPembayaran.length === 0) {
@@ -388,14 +392,12 @@
             let grand = (sub - diskon) + ppn + ongkir;
             document.getElementById('grandTotal').innerText = Math.round(grand).toLocaleString();
             
-            // DP otomatis dihitung dari penjumlahan seluruh riwayat cicilan
             let totalDp = riwayatPembayaran.reduce((sum, item) => sum + item.nominal, 0);
             document.getElementById('dp').value = totalDp;
             
             let sisaTagihan = Math.round(grand - totalDp);
             document.getElementById('sisa').innerText = sisaTagihan.toLocaleString();
             
-            // Logika Stempel PAID Otomatis
             const stempel = document.getElementById('stempelPaidContainer');
             if (sisaTagihan <= 0 && grand > 0) {
                 let tglDibuat = document.getElementById('tgl-dibuat').innerText.split(' ')[0];
@@ -412,11 +414,15 @@
             const qrContainer = document.getElementById("qrcode");
             qrContainer.innerHTML = "";
             if(window.QRCode && text) {
-                new QRCode(qrContainer, { text: text, width: 60, height: 60 });
+                new QRCode(qrContainer, { 
+                    text: text, 
+                    width: 60, 
+                    height: 60,
+                    correctLevel : QRCode.CorrectLevel.H 
+                });
             }
         }
 
-        // CARI INVOICE
         function bukaModalCari() {
             document.getElementById('cariNoInvoice').value = "";
             document.getElementById('cariModal').classList.remove('hidden');
@@ -434,7 +440,6 @@
             ambilDataInvoiceDariServer(noInvoice);
         }
 
-        // TERMIN / CICILAN INPUT
         function bukaModalTermin() {
             document.getElementById('inputBayarTermin').value = "";
             document.getElementById('terminModal').classList.remove('hidden');
@@ -452,7 +457,6 @@
             let kasirAktif = localStorage.getItem('namaKasirAktif') || "Kasir";
             let tglBayar = dapatkanStringTanggalLokal(new Date());
 
-            // Masukkan data transaksi ke riwayat cicilan
             riwayatPembayaran.push({
                 tanggal: tglBayar,
                 nominal: nominalBayar,
@@ -464,11 +468,11 @@
             tutupModalTermin();
             renderRiwayatPembayaran();
             hitungTotal();
-            alert("Cicilan baru ditambahkan! Tekan 'SIMPAN & PRINT' untuk mengirim perubahan ke Google Sheet.");
+            alert("Cicilan ditambahkan! Silakan tekan 'SIMPAN & PRINT' untuk memperbarui Sheet.");
         }
 
         function hapusCicilan(idx) {
-            if(confirm("Apakah Anda yakin ingin menghapus catatan pembayaran ini? (Ini akan mengurangi nilai Total Terbayar)")) {
+            if(confirm("Hapus catatan pembayaran ini? (Akan mengurangi total terbayar)")) {
                 riwayatPembayaran.splice(idx, 1);
                 localStorage.setItem('riwayatPembayaran', JSON.stringify(riwayatPembayaran));
                 renderRiwayatPembayaran();
@@ -496,7 +500,7 @@
                     document.getElementById('nilaiPpn').value = data.data.ppn || 0;
                     document.getElementById('ongkir').value = data.data.ongkir || 0;
                     
-                    let tglAwal = data.data.tanggal ? dapatkanStringTanggalLokal(new Date(data.data.tanggal)) : dapatkanStringTanggalLokal(new Date());
+                    let tglAwal = data.data.tanggal ? data.data.tanggal : dapatkanStringTanggalLokal(new Date());
                     document.getElementById('tgl-dibuat').innerText = tglAwal;
                     localStorage.setItem('tglDibuat', tglAwal);
 
@@ -504,7 +508,6 @@
                     try { rincian = JSON.parse(data.data.rincianBarang); } catch(e) { rincian = []; }
                     localStorage.setItem('listJendela', JSON.stringify(rincian));
 
-                    // Memuat riwayat pembayaran baru
                     try { 
                         riwayatPembayaran = JSON.parse(data.data.riwayatPembayaran); 
                         if (!Array.isArray(riwayatPembayaran)) riwayatPembayaran = [];
@@ -517,7 +520,7 @@
                     renderRiwayatPembayaran();
                     generateQRCode(data.data.noInvoice);
                     
-                    alert("Data invoice berhasil di-load!");
+                    alert("Data invoice berhasil dimuat!");
                 } else {
                     alert("Data tidak ditemukan: " + data.pesan);
                 }
@@ -528,7 +531,6 @@
             }
         }
 
-        // SCANNER QR
         function bukaScanner() {
             document.getElementById('scannerModal').classList.remove('hidden');
             html5QrcodeScanner = new Html5Qrcode("reader");
@@ -555,7 +557,6 @@
             }
         }
 
-        // LOGIN ENGINE
         async function cekLoginKeSheet() {
             const id = document.getElementById('idKasirInput').value.trim().toUpperCase();
             const pass = document.getElementById('passInput').value.trim();
@@ -626,7 +627,6 @@
             }
         }
 
-        // SIMPAN & CETAK
         async function simpanDanCetak() {
             syncPrintFields();
             const btn = document.getElementById('btnSimpanCetak');
@@ -639,7 +639,7 @@
 
             const dataTransaksi = {
                 action: "simpanInvoice",
-                tanggal: new Date(),
+                tanggal: document.getElementById('tgl-dibuat').innerText,
                 noInvoice: noInvoice, 
                 nama: nama,
                 alamat: document.getElementById('alamat').value,
@@ -653,7 +653,7 @@
                 sisa: parseFloat(document.getElementById('sisa').innerText.replace(/,/g, '')) || 0,
                 rincianBarang: JSON.stringify(listJendela),
                 kasir: localStorage.getItem('namaKasirAktif') || "Kasir Utama",
-                riwayatPembayaran: JSON.stringify(riwayatPembayaran) // Menyimpan riwayat sebagai format string JSON
+                riwayatPembayaran: JSON.stringify(riwayatPembayaran) 
             };
 
             try {
@@ -672,7 +672,7 @@
                         btn.disabled = false;
                     }, 500);
                 } else {
-                    alert("Gagal menyimpan ke Google Sheet: " + result.pesan);
+                    alert("Gagal menyimpan ke Sheet: " + result.pesan);
                     btn.innerText = "SIMPAN & PRINT";
                     btn.disabled = false;
                 }
@@ -685,18 +685,18 @@
         }
 
         function transaksiBaru() {
-            if(confirm("Mulai transaksi baru? Semua data formulir saat ini akan dibersihkan.")) {
+            if(confirm("Mulai transaksi baru? Semua data formulir di layar akan dibersihkan.")) {
                 const logInStatus = localStorage.getItem('isLoggedIn');
                 const namaKasir = localStorage.getItem('namaKasirAktif');
                 localStorage.clear(); 
                 if(logInStatus) localStorage.setItem('isLoggedIn', logInStatus);
                 if(namaKasir) localStorage.setItem('namaKasirAktif', namaKasir);
-                window.location.href = 'index.html'; 
+                window.location.reload();
             }
         }
 
         function logout() { 
-            if(confirm("Keluar aplikasi?")) {
+            if(confirm("Keluar aplikasi kasir?")) {
                 localStorage.clear(); 
                 location.reload(); 
             }
@@ -722,7 +722,6 @@
             }
             document.getElementById('tgl-dibuat').innerText = tglDibuatSaved;
 
-            // Load data riwayat dari localStorage jika ada
             const savedRiwayat = localStorage.getItem('riwayatPembayaran');
             riwayatPembayaran = savedRiwayat ? JSON.parse(savedRiwayat) : [];
 
