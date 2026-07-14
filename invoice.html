@@ -18,21 +18,22 @@
             .grid-print { display: block !important; }
             .grid-print p { margin-bottom: 4px; }
         }
-        /* Style Stempel Paid Tepat di Tengah Invoice */
+        
+        /* Style Stempel PAID Raksasa Tepat di Tengah Invoice */
         .stempel-paid {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%) rotate(-15deg);
-            border: 5px dashed #16a34a;
+            border: 8px dashed #16a34a;
             color: #16a34a;
-            padding: 10px 30px;
+            padding: 20px 50px;
             font-size: 5rem;
             text-transform: uppercase;
             font-weight: 900 !important;
-            letter-spacing: 4px;
-            border-radius: 12px;
-            opacity: 0.25; /* Transparan agar teks di bawahnya tetap terbaca saat diprint */
+            letter-spacing: 6px;
+            border-radius: 16px;
+            opacity: 0.25; /* Transparan agar tulisan di bawahnya tetap terbaca */
             background-color: transparent;
             pointer-events: none;
             z-index: 50;
@@ -108,7 +109,6 @@
             <div class="text-xs mt-3 text-gray-800 space-y-0.5">
                 <p>JL. Jend. Sudirman Berkoh - Purwokerto (53146)</p>
                 <p>Tlp. 0895-0421-5020 | Email: yenygorden@gmail.com</p>
-                <p>NIB: 3006260016473</P>
             </div>
             <div class="flex justify-between items-end mt-4 pt-2 border-t border-dashed border-gray-400 text-left">
                 <div class="text-xs space-y-0.5">
@@ -134,7 +134,14 @@
         </div>
 
         <table class="w-full mb-4 border-collapse border-2 border-black relative z-20">
-            <thead><tr class="bg-gray-200"><th class="p-2 border-2 text-left">Nama Jendela / Item</th><th class="p-2 border-2 w-32 text-center">Ukuran</th><th class="p-2 border-2 w-40 text-right">Harga</th></tr></thead>
+            <thead>
+                <tr class="bg-gray-200">
+                    <th class="p-2 border-2 text-left">Nama Jendela / Item</th>
+                    <th class="p-2 border-2 w-28 text-center">Ukuran</th>
+                    <th class="p-2 border-2 w-36 text-right">Harga</th>
+                    <th class="p-2 border-2 w-16 text-center no-print">Aksi</th>
+                </tr>
+            </thead>
             <tbody id="bodyBarang"></tbody>
         </table>
 
@@ -151,7 +158,7 @@
             <div class="text-xl text-red-700 print-text">Sisa Tagihan: Rp <span id="sisa-print">0</span></div>
         </div>
 
-        <!-- PANEL MENU UTAMA SEJAJAR HORIZONTAL -->
+        <!-- PANEL MENU UTAMA -->
         <div class="no-print mt-8 pt-4 border-t-2 border-dashed border-gray-400 grid grid-cols-5 gap-2 text-center text-xs relative z-20">
             <button id="btnSimpanCetak" onclick="simpanDanCetak()" class="bg-blue-800 text-white p-3 rounded font-black uppercase text-sm col-span-1 shadow-md hover:bg-blue-900">SIMPAN & PRINT</button>
             <button onclick="bukaModalCari()" class="bg-sky-700 text-white p-3 rounded font-bold uppercase col-span-1 hover:bg-sky-800">CARI DATA</button>
@@ -167,7 +174,7 @@
         const h = { jahit: 20000, smokring: 4500, rollet: 65000, rell: 50000, hook: 40000, tali: 50000, stick: 50000, instalasi: 50000 };
         let globalSubtotal = 0;
         let html5QrcodeScanner = null;
-        let listJendela = []; // Array penampung item aktif
+        let listJendela = []; 
 
         function dapatkanStringTanggalLokal(objDate = new Date()) {
             if(isNaN(objDate.getTime())) return "-";
@@ -196,7 +203,7 @@
         }
 
         function hitungTotalSatuJendela(w) {
-            if(w.isManual) return parseFloat(w.hargaManual) || 0; // Jika baris manual, return harga manualnya langsung
+            if(w.isManual) return parseFloat(w.hargaManual) || 0; 
             
             let items = [], Lc = Math.max(w.L, 1);
             if(w.mode === 'curtain') {
@@ -223,7 +230,7 @@
             return items.reduce((s, i) => s + i.harga, 0);
         }
 
-        // FUNGSI MENAMBAH BARIS MANUAL LANGSUNG KE TABEL
+        // TAMBAH BARIS MANUAL
         function tambahBarisManual() {
             let itemBaru = {
                 idManual: Date.now(),
@@ -237,7 +244,16 @@
             renderTabelBarang(listJendela);
         }
 
-        // Sinkronisasi data saat input manual di dalam tabel diketik oleh kasir
+        // PROSES HAPUS BARIS
+        function hapusBaris(index) {
+            if(confirm("Apakah Anda yakin ingin menghapus item ini dari invoice?")) {
+                listJendela.splice(index, 1);
+                localStorage.setItem('listJendela', JSON.stringify(listJendela));
+                renderTabelBarang(listJendela);
+            }
+        }
+
+        // INPUT MANUAL SINKRON
         function updateNilaiManual(id, field, value) {
             let idx = listJendela.findIndex(item => item.idManual === id);
             if(idx !== -1) {
@@ -248,7 +264,6 @@
                 }
                 localStorage.setItem('listJendela', JSON.stringify(listJendela));
                 
-                // Hitung ulang subtotal tanpa me-render ulang agar input tidak kehilangan fokus mengetik
                 globalSubtotal = 0;
                 listJendela.forEach(j => {
                     globalSubtotal += hitungTotalSatuJendela(j);
@@ -268,12 +283,11 @@
             let htmlTabel = '';
             globalSubtotal = 0;
             
-            listJendela.forEach(jendela => {
+            listJendela.forEach((jendela, index) => {
                 let totalHargaJendela = hitungTotalSatuJendela(jendela);
                 globalSubtotal += totalHargaJendela;
                 
                 if(jendela.isManual) {
-                    // Baris Render Input Manual
                     htmlTabel += `
                         <tr class="border-b border-gray-300 bg-amber-50">
                             <td class="p-1 border-x-2 border-black text-left">
@@ -285,19 +299,24 @@
                                 <span class="print-text">${jendela.ukuran}</span>
                             </td>
                             <td class="p-1 border-x-2 border-black text-right">
-                                <span class="no-print">Rp </span><input type="number" value="${jendela.hargaManual}" oninput="updateNilaiManual(${jendela.idManual}, 'hargaManual', this.value)" class="w-28 bg-transparent p-1 border border-dashed border-gray-400 rounded text-right">
+                                <span class="no-print">Rp </span><input type="number" value="${jendela.hargaManual}" oninput="updateNilaiManual(${jendela.idManual}, 'hargaManual', this.value)" class="w-24 bg-transparent p-1 border border-dashed border-gray-400 rounded text-right">
                                 <span class="print-text">Rp ${Math.round(totalHargaJendela).toLocaleString()}</span>
+                            </td>
+                            <td class="p-1 border-x-2 border-black text-center no-print">
+                                <button onclick="hapusBaris(${index})" class="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-2 py-1 rounded shadow">❌</button>
                             </td>
                         </tr>
                     `;
                 } else {
-                    // Baris Kalkulator Otomatis
                     let ukuran = `${jendela.L}m × ${jendela.T}m`;
                     htmlTabel += `
                         <tr class="border-b border-gray-300">
                             <td class="p-2 border-x-2 border-black text-left">${jendela.nama}</td>
                             <td class="p-2 border-x-2 border-black text-center">${ukuran}</td>
                             <td class="p-2 border-x-2 border-black text-right">Rp ${Math.round(totalHargaJendela).toLocaleString()}</td>
+                            <td class="p-2 border-x-2 border-black text-center no-print">
+                                <button onclick="hapusBaris(${index})" class="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-2 py-1 rounded shadow">❌</button>
+                            </td>
                         </tr>
                     `;
                 }
@@ -342,7 +361,7 @@
             }
         }
 
-        // KONTROL MODAL CARI MANUAL
+        // CARI INVOICE
         function bukaModalCari() {
             document.getElementById('cariNoInvoice').value = "";
             document.getElementById('cariModal').classList.remove('hidden');
@@ -360,7 +379,7 @@
             ambilDataInvoiceDariServer(noInvoice);
         }
 
-        // KONTROL MODAL TERMIN SISA TAGIHAN
+        // TERMIN
         function bukaModalTermin() {
             document.getElementById('inputBayarTermin').value = "";
             document.getElementById('terminModal').classList.remove('hidden');
@@ -380,10 +399,9 @@
             
             tutupModalTermin();
             hitungTotal();
-            alert("Pembayaran termin dimasukkan di form! Klik 'SIMPAN & PRINT' untuk memperbarui data di server.");
+            alert("Sisa tagihan di-update! Tekan 'SIMPAN & PRINT' untuk mengirim perubahan ke Google Sheet.");
         }
 
-        // AMBIL DATA INVOICE DARI SERVER
         async function ambilDataInvoiceDariServer(noInvoice) {
             const btnCari = document.getElementById('btnProsesCari');
             if(btnCari) btnCari.innerText = "PROSES...";
@@ -416,12 +434,12 @@
                     renderTabelBarang(rincian);
                     generateQRCode(data.data.noInvoice);
                     
-                    alert("Invoice ditemukan! Silakan masukkan pembayaran cicilan jika ada termin.");
+                    alert("Data invoice berhasil di-load!");
                 } else {
                     alert("Data tidak ditemukan: " + data.pesan);
                 }
             } catch(e) {
-                alert("Koneksi gagal mengambil data.");
+                alert("Koneksi gagal.");
             } finally {
                 if(btnCari) btnCari.innerText = "CARI";
             }
@@ -473,7 +491,7 @@
                         document.getElementById('formLoginUtama').classList.add('hidden');
                         document.getElementById('formGantiPassword').classList.remove('hidden');
                         document.getElementById('idKasirTersembunyi').value = id;
-                        alert("Anda baru pertama kali login. Diwajibkan mengganti password bawaan demi keamanan!");
+                        alert("Silakan ganti password bawaan Anda!");
                     } else {
                         localStorage.setItem('isLoggedIn', 'true');
                         location.reload();
@@ -483,7 +501,7 @@
                     btn.innerText = "MASUK"; 
                 }
             } catch(e) { 
-                alert("Koneksi gagal memverifikasi login."); 
+                alert("Gagal terhubung."); 
                 btn.innerText = "MASUK"; 
             }
         }
@@ -496,7 +514,6 @@
             
             if(!p1 || !p2) return alert("Password baru tidak boleh kosong!");
             if(p1 !== p2) return alert("Konfirmasi password tidak cocok!");
-            if(p1.length < 4) return alert("Password minimal 4 karakter!");
 
             btn.innerText = "MEMPROSES...";
             try {
@@ -513,7 +530,7 @@
                 const result = await response.json();
                 
                 if(result.status === "sukses") {
-                    alert("Password berhasil diperbarui! Masuk otomatis.");
+                    alert("Selesai! Anda masuk otomatis.");
                     localStorage.setItem('isLoggedIn', 'true');
                     location.reload();
                 } else {
@@ -521,12 +538,12 @@
                     btn.innerText = "SIMPAN PASSWORD & MASUK";
                 }
             } catch(e) {
-                alert("Gagal memperbarui password ke server.");
+                alert("Gagal memperbarui password.");
                 btn.innerText = "SIMPAN PASSWORD & MASUK";
             }
         }
 
-        // SIMPAN & PRINT
+        // SIMPAN & CETAK
         async function simpanDanCetak() {
             syncPrintFields();
             const btn = document.getElementById('btnSimpanCetak');
@@ -575,7 +592,7 @@
                     btn.disabled = false;
                 }
             } catch (e) {
-                alert("Gangguan server. Cetak lokal dipaksa.");
+                alert("Koneksi bermasalah. Print paksa lokal.");
                 window.print();
                 btn.innerText = "SIMPAN & PRINT";
                 btn.disabled = false;
@@ -583,7 +600,7 @@
         }
 
         function transaksiBaru() {
-            if(confirm("Kembali ke Halaman Utama Kalkulator untuk membuat pesanan baru?")) {
+            if(confirm("Mulai transaksi baru? Semua data formulir saat ini akan dibersihkan.")) {
                 const logInStatus = localStorage.getItem('isLoggedIn');
                 const namaKasir = localStorage.getItem('namaKasirAktif');
                 localStorage.clear(); 
@@ -594,7 +611,7 @@
         }
 
         function logout() { 
-            if(confirm("Keluar dari aplikasi kasir?")) {
+            if(confirm("Keluar aplikasi?")) {
                 localStorage.clear(); 
                 location.reload(); 
             }
