@@ -31,7 +31,7 @@
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.25s ease;
-            overflow-y: auto; /* Jika seluruh modal melebihi tinggi layar ponsel, layar utama yang men-scroll, bukan isi modalnya */
+            overflow-y: auto;
             padding: 20px;
         }
         .modal-overlay.active {
@@ -48,7 +48,7 @@
             box-shadow: 0 10px 25px rgba(0,0,0,0.5);
             transform: scale(0.85);
             transition: transform 0.25s ease;
-            margin: auto; /* Memastikan posisi tetap seimbang di tengah layar */
+            margin: auto;
         }
         .modal-overlay.active .modal-content {
             transform: scale(1);
@@ -63,7 +63,6 @@
             text-transform: uppercase;
         }
         .modal-body {
-            /* max-height dan overflow-y dihapus agar otomatis menjabarkan seluruh item ke bawah */
             text-align: left;
             font-size: 0.95rem;
         }
@@ -213,7 +212,10 @@ function tambah() {
 function hitung(w) {
     let items = [], Lc = Math.max(w.L, 1);
     if(w.mode === 'curtain') {
-        let mK = (w.jenis === 'lokal') ? Math.ceil((w.L + 0.2) / 0.4) * (w.T + 0.3) : (w.L + 0.2) * 3;
+        // Pemisahan rumus kain dasar agar hitungan kain utama dan vitrase tidak saling tercampur
+        let rumusDasarKain = (w.jenis === 'lokal') ? Math.ceil((w.L + 0.2) / 0.4) * (w.T + 0.3) : (w.L + 0.2) * 3;
+        
+        let mK = rumusDasarKain;
         if(w.model === 'tabtop') mK += 1.0;
         
         let hargaKain = (w.jenis === 'vitrase') ? w.hVit : w.hKain;
@@ -228,7 +230,8 @@ function hitung(w) {
         } else if(w.model === 'spiral') { items.push({nama: "Stick", qty: "1pcs", harga: h.stick}); }
         
         if(w.vOn) {
-            let mKvit = (w.vModel === 'spiral') ? (w.vL * w.vQ) : mK;
+            // Vitrase spiral menggunakan input khususnya, vitrase non-spiral kembali ke rumus dasar murni tanpa bonus +1.0m Tab Top
+            let mKvit = (w.vModel === 'spiral') ? (w.vL * w.vQ) : rumusDasarKain;
             items.push({nama: "Vitrase", qty: mKvit.toFixed(2)+"m", harga: mKvit * w.hVit}, {nama: "Jahit Vitrase", qty: mKvit.toFixed(2)+"m", harga: mKvit * h.jahit}, {nama: "Rell", qty: Lc+"m", harga: Lc * h.rell});
         }
         items.push({nama: "Instalasi", qty: Lc+"m", harga: Lc * h.instalasi});
